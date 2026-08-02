@@ -1,0 +1,10 @@
+<Project>
+    <Target
+            Name="RemoveWindowsAppSDKPayloadFilesFromDesignTimeBuild"
+            AfterTargets="AddMicrosoftWindowsAppSDKPayloadFilesFromComponents"
+            Condition="'$(DesignTimeBuild)' == 'true'">
+        <ItemGroup>
+            <None Remove="@(MicrosoftWindowsAppSDKFiles)"/>
+        </ItemGroup>
+    </Target>
+</Project>
