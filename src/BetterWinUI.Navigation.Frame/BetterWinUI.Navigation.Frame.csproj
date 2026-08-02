@@ -17,27 +17,11 @@
 
     <ItemGroup>
         <ProjectReference Include="..\BetterWinUI.Navigation\BetterWinUI.Navigation.csproj"/>
-        <ProjectReference
-                Include="..\BetterWinUI.Navigation.Generator\BetterWinUI.Navigation.Generator.csproj"
-                ReferenceOutputAssembly="false"
-                PrivateAssets="all"/>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions"/>
         <PackageReference Include="Microsoft.WindowsAppSDK.WinUI"/>
     </ItemGroup>
 
     <ItemGroup>
-        <None
-                Include="..\BetterWinUI.Navigation.Generator\bin\$(Configuration)\netstandard2.0\BetterWinUI.Navigation.Generator.dll"
-                Pack="true"
-                PackagePath="analyzers/dotnet/cs"
-                Visible="false"/>
-    </ItemGroup>
-
-    <ItemGroup>
         <None Include="README.md" Pack="true" PackagePath="/"/>
-        <None
-                Include="..\..\third_party\licenses\Scriban.LICENSE.txt"
-                Pack="true"
-                PackagePath="third_party/licenses/"/>
     </ItemGroup>
 </Project>
