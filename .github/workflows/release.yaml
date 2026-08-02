@@ -1,0 +1,132 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Calculate version
+        id: version
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+          $rawVersion = (npx --yes git-cliff --config cliff.toml --bumped-version).Trim()
+          $version = $rawVersion.TrimStart('v')
+
+          if ($version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
+            throw "git-cliff returned an invalid semantic version: $rawVersion"
+          }
+
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=v$version" >> $env:GITHUB_OUTPUT
+
+      - name: Generate release notes
+        run: >-
+          npx --yes git-cliff
+          --config cliff.toml
+          --unreleased
+          --tag ${{ steps.version.outputs.tag }}
+          --output artifacts/release-notes.md
+
+      - name: Restore
+        run: dotnet restore src/BetterWinUI.slnx
+
+      - name: Build
+        run: dotnet build src/BetterWinUI.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test src/BetterWinUI.slnx --configuration Release --no-build
+
+      - name: Pack
+        shell: pwsh
+        run: |
+          $projects = @(
+            'src/BetterWinUI.Navigation/BetterWinUI.Navigation.csproj',
+            'src/BetterWinUI.Navigation.Frame/BetterWinUI.Navigation.Frame.csproj',
+            'src/BetterWinUI.DependencyInjection.PageActivation/BetterWinUI.DependencyInjection.PageActivation.csproj'
+          )
+
+          foreach ($project in $projects) {
+            dotnet pack $project `
+              --configuration Release `
+              --no-build `
+              --output artifacts `
+              -p:Version=${{ steps.version.outputs.version }}
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: nuget-release
+          path: artifacts
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: nuget
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Download release artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: nuget-release
+          path: artifacts
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Login to NuGet.org
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      - name: Publish packages
+        run: >-
+          dotnet nuget push "artifacts/*.nupkg"
+          --source https://api.nuget.org/v3/index.json
+          --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}"
+          --skip-duplicate
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.build.outputs.tag }}
+          name: ${{ needs.build.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          body_path: artifacts/release-notes.md
+          files: artifacts/*.nupkg

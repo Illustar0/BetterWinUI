@@ -1,0 +1,14 @@
+<Solution>
+    <Project Path="BetterWinUI.Navigation.Frame/BetterWinUI.Navigation.Frame.csproj"/>
+    <Project Path="BetterWinUI.Navigation.Generator/BetterWinUI.Navigation.Generator.csproj"/>
+    <Project Path="BetterWinUI.Navigation/BetterWinUI.Navigation.csproj"/>
+    <Project
+            Path="BetterWinUI.DependencyInjection.PageActivation/BetterWinUI.DependencyInjection.PageActivation.csproj"/>
+    <Project
+            Path="BetterWinUI.DependencyInjection.PageActivation.Generator/BetterWinUI.DependencyInjection.PageActivation.Generator.csproj"/>
+    <Project
+            Path="BetterWinUI.DependencyInjection.PageActivation.IntegrationTests/BetterWinUI.DependencyInjection.PageActivation.IntegrationTests.csproj"/>
+    <Project
+            Path="BetterWinUI.DependencyInjection.PageActivation.Tests/BetterWinUI.DependencyInjection.PageActivation.Tests.csproj"/>
+    <Project Path="BetterWinUI.Navigation.Tests/BetterWinUI.Navigation.Tests.csproj"/>
+</Solution>

@@ -1,0 +1,45 @@
+# .NET build and package output
+[Bb]in/
+[Oo]bj/
+artifacts/
+[Tt]est[Rr]esults*/
+BenchmarkDotNet.Artifacts/
+*.nupkg
+*.snupkg
+*.binlog
+
+# IDE and user-specific files
+.vs/
+.idea/
+.junie/
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+_ReSharper*/
+
+# Test coverage
+coverage*/
+*.coverage
+*.coveragexml
+
+# WinUI packaging output
+AppPackages/
+BundleArtifacts/
+Generated Files/
+*.appx
+*.appxbundle
+*.appxupload
+*.msix
+*.msixbundle
+*.msixupload
+
+# Operating-system and temporary files
+.DS_Store
+Thumbs.db
+*.tmp
+*.log
+~$*
+*~

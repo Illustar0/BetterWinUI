@@ -1,0 +1,11 @@
+<Project>
+    <PropertyGroup>
+
+        <IsAotCompatible>true</IsAotCompatible>
+        <LangVersion>preview</LangVersion>
+        <Features>strict</Features>
+        <TrimmerSingleWarn>false</TrimmerSingleWarn>
+        <CustomAfterMicrosoftCommonTargets>$(MSBuildThisFileDirectory)BetterWinUI.AfterCommon.targets</CustomAfterMicrosoftCommonTargets>
+
+    </PropertyGroup>
+</Project>
