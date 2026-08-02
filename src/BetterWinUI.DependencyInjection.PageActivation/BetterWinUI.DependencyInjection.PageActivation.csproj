@@ -6,7 +6,9 @@
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <IsPackable>true</IsPackable>
         <PackageId>BetterWinUI.DependencyInjection.PageActivation</PackageId>
+        <Title>BetterWinUI Dependency Injection Page Activation</Title>
         <Description>NativeAOT-compatible dependency injection activation for WinUI pages.</Description>
+        <PackageTags>BetterWinUI;WinUI;WinUI3;WindowsAppSDK;dependency-injection;page-activation;source-generator;NativeAOT</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <IncludeBuildOutput>true</IncludeBuildOutput>
     </PropertyGroup>

@@ -7,5 +7,18 @@
         <TrimmerSingleWarn>false</TrimmerSingleWarn>
         <CustomAfterMicrosoftCommonTargets>$(MSBuildThisFileDirectory)BetterWinUI.AfterCommon.targets</CustomAfterMicrosoftCommonTargets>
 
+        <Authors>Illustar0</Authors>
+        <Company>Illustar0</Company>
+        <Copyright>Copyright © 2026 Illustar0</Copyright>
+        <PackageProjectUrl>https://github.com/Illustar0/BetterWinUI</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/Illustar0/BetterWinUI.git</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+
     </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="$(MSBuildThisFileDirectory)..\LICENSE" Pack="true" PackagePath="/"/>
+    </ItemGroup>
 </Project>

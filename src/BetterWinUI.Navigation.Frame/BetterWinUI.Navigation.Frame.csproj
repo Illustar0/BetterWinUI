@@ -9,7 +9,9 @@
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <IsPackable>true</IsPackable>
         <PackageId>BetterWinUI.Navigation.Frame</PackageId>
+        <Title>BetterWinUI Navigation for Frame</Title>
         <Description>WinUI Frame navigation adapter for BetterWinUI.Navigation.</Description>
+        <PackageTags>BetterWinUI;WinUI;WinUI3;WindowsAppSDK;navigation;Frame;dependency-injection;NativeAOT</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
 
