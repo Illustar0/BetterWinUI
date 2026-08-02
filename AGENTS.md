@@ -24,15 +24,13 @@ dotnet test src/BetterWinUI.slnx --configuration Release --no-build
 
 ## Conventions
 
-- Keep packages focused; navigation registration, navigation execution, and
-  page activation are separate concerns.
+- Keep packages focused; navigation registration, navigation execution, and page activation are separate concerns.
 - Preserve .NET 8 compatibility for published packages and `netstandard2.0`
   compatibility for source generators.
-- Compile published source generators against Roslyn 4.8 so they remain
-  loadable by the .NET 8 SDK; newer Roslyn versions belong in test overrides.
-- `BetterWinUI.DependencyInjection.PageActivation.Tests` intentionally targets
-  .NET 10 because it loads assemblies compiled against .NET 10 reference
-  assemblies and verifies forward-looking WinUI contracts.
+- Compile published source generators against Roslyn 4.8 so they remain loadable by the .NET 8 SDK; newer Roslyn
+  versions belong in test overrides.
+- `BetterWinUI.DependencyInjection.PageActivation.Tests` intentionally targets .NET 10 because it loads assemblies
+  compiled against .NET 10 reference assemblies and verifies forward-looking WinUI contracts.
 - Manage NuGet versions centrally in `src/Directory.Packages.props`.
 - Add XML documentation to public APIs and keep source-generator diagnostics in
   `AnalyzerReleases.Unshipped.md` using the exact Roslyn table format.

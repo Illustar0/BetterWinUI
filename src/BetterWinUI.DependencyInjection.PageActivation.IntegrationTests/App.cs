@@ -24,6 +24,6 @@ public sealed partial class App : Application
     /// </summary>
     public void Initialize(IServiceProvider services)
     {
-        this.InitializeBetterPageActivation(services);
+        InitializeBetterPageActivation(services);
     }
 }
