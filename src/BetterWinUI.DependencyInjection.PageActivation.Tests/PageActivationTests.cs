@@ -33,6 +33,8 @@ public sealed class PageActivationTests
             "internal sealed partial class PageActivationXamlType_",
             generated,
             StringComparison.Ordinal);
+        Assert.Contains("WinRTExposedType", generated, StringComparison.Ordinal);
+        Assert.Contains("IWinRTExposedTypeDetails", generated, StringComparison.Ordinal);
         Assert.Contains("ServiceLifetime.Transient", module, StringComparison.Ordinal);
         Assert.Contains("ServiceLifetime.Singleton", module, StringComparison.Ordinal);
         Assert.DoesNotContain("global::Fixture.ManualPage", module, StringComparison.Ordinal);
@@ -443,6 +445,26 @@ internal static class GeneratorTestHost
 {
     internal const string WinUiStubs =
         """
+        namespace WinRT
+        {
+            [System.AttributeUsage(System.AttributeTargets.Class)]
+            public sealed class WinRTRuntimeClassNameAttribute(string name) : System.Attribute;
+            [System.AttributeUsage(System.AttributeTargets.Class)]
+            public sealed class WinRTExposedTypeAttribute(System.Type type) : System.Attribute;
+            public interface IWinRTExposedTypeDetails
+            {
+                System.Runtime.InteropServices.ComWrappers.ComInterfaceEntry[]
+                    GetExposedInterfaces();
+            }
+        }
+        namespace ABI.Microsoft.UI.Xaml.Markup
+        {
+            public static class IXamlTypeMethods
+            {
+                public static System.Guid IID => default;
+                public static nint AbiToProjectionVftablePtr => default;
+            }
+        }
         namespace Microsoft.UI.Xaml
         {
             public class Application { }

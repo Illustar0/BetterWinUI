@@ -240,6 +240,9 @@ namespace BetterWinUI.DependencyInjection.PageActivation.Generated
         }
     }
 
+    [global::WinRT.WinRTRuntimeClassName("Microsoft.UI.Xaml.Markup.IXamlType")]
+    [global::WinRT.WinRTExposedType(
+        typeof(PageActivationXamlTypeWinRTTypeDetails_{{ Suffix }}))]
     internal sealed partial class PageActivationXamlType_{{ Suffix }} :
         {{ XamlTypeInterfaceName }}
     {
@@ -279,5 +282,21 @@ namespace BetterWinUI.DependencyInjection.PageActivation.Generated
         }
 {{ end }}
 {{ end }}
+    }
+
+    internal sealed class PageActivationXamlTypeWinRTTypeDetails_{{ Suffix }} :
+        global::WinRT.IWinRTExposedTypeDetails
+    {
+        public global::System.Runtime.InteropServices.ComWrappers.ComInterfaceEntry[]
+            GetExposedInterfaces() =>
+            new global::System.Runtime.InteropServices.ComWrappers.ComInterfaceEntry[]
+            {
+                new global::System.Runtime.InteropServices.ComWrappers.ComInterfaceEntry
+                {
+                    IID = global::ABI.Microsoft.UI.Xaml.Markup.IXamlTypeMethods.IID,
+                    Vtable = global::ABI.Microsoft.UI.Xaml.Markup.IXamlTypeMethods
+                        .AbiToProjectionVftablePtr
+                }
+            };
     }
 }
