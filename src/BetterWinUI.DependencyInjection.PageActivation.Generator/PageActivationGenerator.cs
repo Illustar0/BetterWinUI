@@ -29,7 +29,7 @@ public sealed class PageActivationGenerator : IIncrementalGenerator
         var viewModels = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 MetadataNames.ViewModelAttribute,
-                static (node, _) => node is ClassDeclarationSyntax,
+                static (node, _) => node is TypeDeclarationSyntax,
                 static (syntaxContext, cancellationToken) =>
                     ViewModelInfo.Create(syntaxContext, cancellationToken));
 

@@ -296,6 +296,33 @@ public sealed class PageActivationTests
     }
 
     /// <summary>
+    /// Verifies record classes participate in generated ViewModel registration.
+    /// </summary>
+    [Fact]
+    public void RecordClassViewModelIsRegistered()
+    {
+        var result = GeneratorTestHost.Run(
+            "RecordViewModel",
+            (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
+            (
+                """
+                using BetterWinUI.DependencyInjection.PageActivation;
+                using Microsoft.Extensions.DependencyInjection;
+                namespace Fixture;
+
+                [ViewModel(ServiceLifetime.Transient)]
+                public sealed record MainViewModel;
+                """,
+                "RecordViewModel.cs"));
+
+        result.AssertNoErrors();
+        Assert.Contains(
+            "typeof(global::Fixture.MainViewModel)",
+            result.GetGeneratedSource("PageActivation.ViewModule"),
+            StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// Verifies types that a namespace-level generated module cannot name are rejected.
     /// </summary>
     [Fact]
