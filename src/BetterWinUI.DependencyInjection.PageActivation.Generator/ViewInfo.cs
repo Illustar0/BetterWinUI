@@ -60,7 +60,7 @@ internal readonly struct ViewInfo : IEquatable<ViewInfo>
         var validType =
             symbol.TypeKind == TypeKind.Class &&
             !symbol.IsAbstract &&
-            symbol.Arity == 0 &&
+            symbol.CanBeReferencedFromGeneratedModule() &&
             symbol.DerivesFrom(pageType);
 
         if (!validType)

@@ -296,6 +296,55 @@ public sealed class PageActivationTests
     }
 
     /// <summary>
+    /// Verifies types that a namespace-level generated module cannot name are rejected.
+    /// </summary>
+    [Fact]
+    public void InaccessibleAndOuterGenericRegistrationsAreRejected()
+    {
+        var result = GeneratorTestHost.Run(
+            "InvalidRegistrationTypes",
+            (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
+            (
+                """
+                using BetterWinUI.DependencyInjection.PageActivation;
+                using Microsoft.Extensions.DependencyInjection;
+                using Microsoft.UI.Xaml.Controls;
+                namespace Fixture;
+
+                public sealed class GenericContainer<T>
+                {
+                    [View]
+                    public sealed class NestedPage : Page;
+
+                    [ViewModel(ServiceLifetime.Transient)]
+                    public sealed class NestedViewModel;
+                }
+
+                public sealed class PrivateContainer
+                {
+                    [View]
+                    private sealed class NestedPage : Page;
+
+                    [ViewModel(ServiceLifetime.Transient)]
+                    private sealed class NestedViewModel;
+                }
+
+                [View]
+                file sealed class FilePage : Page;
+
+                [ViewModel(ServiceLifetime.Transient)]
+                file sealed class FileViewModel;
+                """,
+                "InvalidRegistrationTypes.cs"));
+
+        result.AssertGeneratorDiagnostic("BWPA0006");
+        result.AssertGeneratorDiagnostic("BWPA0007");
+        Assert.DoesNotContain(
+            result.OutputCompilation.GetDiagnostics(),
+            static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+    }
+
+    /// <summary>
     /// Verifies structural forwarding for future interface members.
     /// </summary>
     [Fact]

@@ -58,8 +58,7 @@ internal readonly struct ViewModelInfo : IEquatable<ViewModelInfo>
         var validType =
             symbol.TypeKind == TypeKind.Class &&
             !symbol.IsAbstract &&
-            !symbol.IsUnboundGenericType &&
-            symbol.Arity == 0;
+            symbol.CanBeReferencedFromGeneratedModule();
 
         if (!validType)
             diagnostics.Add(new DiagnosticInfo(

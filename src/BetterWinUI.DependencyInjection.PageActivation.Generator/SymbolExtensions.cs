@@ -44,6 +44,26 @@ internal static class SymbolExtensions
     }
 
     /// <summary>
+    /// Determines whether a generated namespace-level module can reference a type.
+    /// </summary>
+    /// <param name="symbol">The candidate type.</param>
+    /// <returns><see langword="true"/> when the type is closed and assembly-accessible.</returns>
+    public static bool CanBeReferencedFromGeneratedModule(this INamedTypeSymbol symbol)
+    {
+        for (var current = symbol; current is not null; current = current.ContainingType)
+        {
+            if (current.Arity != 0 ||
+                current.IsFileLocal ||
+                current.DeclaredAccessibility is not Accessibility.Public and
+                    not Accessibility.Internal and
+                    not Accessibility.ProtectedOrInternal)
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// Determines whether every declaration of a type is partial.
     /// </summary>
     /// <param name="symbol">The type symbol.</param>

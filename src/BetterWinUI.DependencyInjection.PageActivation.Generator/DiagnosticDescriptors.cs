@@ -51,14 +51,14 @@ internal static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor InvalidView = Create(
         "BWPA0006",
         "Unsupported view declaration",
-        "Type '{0}' must be a concrete, non-generic WinUI Page subclass",
+        "Type '{0}' must be an accessible, concrete, non-generic WinUI Page subclass",
         DiagnosticSeverity.Error);
 
     /// <summary>The view model is unsupported.</summary>
     public static readonly DiagnosticDescriptor InvalidViewModel = Create(
         "BWPA0007",
         "Unsupported view model declaration",
-        "View model type '{0}' must be a concrete, non-abstract, closed class",
+        "View model type '{0}' must be an accessible, concrete, non-abstract, closed class",
         DiagnosticSeverity.Error);
 
     /// <summary>Scoped generated registrations are not implemented.</summary>
