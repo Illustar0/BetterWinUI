@@ -45,6 +45,10 @@ public sealed class PageActivationTests
             "PageActivationViewModuleAttribute(",
             module,
             StringComparison.Ordinal);
+        Assert.Contains(
+            $"    {PageActivationViewModuleAttribute.CurrentContractVersion},",
+            module,
+            StringComparison.Ordinal);
     }
 
     /// <summary>

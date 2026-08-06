@@ -19,7 +19,7 @@ public sealed class PageActivationViewModuleAttribute(
     /// <summary>
     /// Gets the current generated module contract version.
     /// </summary>
-    public const int CurrentContractVersion = 3;
+    public const int CurrentContractVersion = 1;
 
     /// <summary>
     /// Gets the generated module contract version.
