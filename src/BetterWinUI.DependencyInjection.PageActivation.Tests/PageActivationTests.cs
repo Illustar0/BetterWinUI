@@ -376,7 +376,7 @@ public sealed class PageActivationTests
         result.AssertGeneratorDiagnostic("BWPA0006");
         result.AssertGeneratorDiagnostic("BWPA0007");
         Assert.DoesNotContain(
-            result.OutputCompilation.GetDiagnostics(),
+            result.OutputCompilation.GetDiagnostics(TestContext.Current.CancellationToken),
             static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
     }
 
