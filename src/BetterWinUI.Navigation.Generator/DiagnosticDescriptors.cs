@@ -17,8 +17,8 @@ internal static class DiagnosticDescriptors
 
     internal static readonly DiagnosticDescriptor InvalidView = new(
         "BWNAV002",
-        "Invalid navigation View",
-        "View '{0}' must be a concrete, non-generic class",
+        "Invalid navigation type",
+        "Navigation type '{0}' must be accessible and closed; annotated Views must also be concrete classes",
         "BetterWinUI.Navigation",
         DiagnosticSeverity.Error,
         true);

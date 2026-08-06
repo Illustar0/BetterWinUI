@@ -53,7 +53,7 @@ internal sealed class RegistrationInfo
 
         if (viewType.TypeKind != TypeKind.Class ||
             viewType.IsAbstract ||
-            ContainsTypeParameter(viewType))
+            !CanBeReferencedFromGeneratedModule(viewType))
             return Invalid(
                 viewTypeName,
                 location,
@@ -82,6 +82,22 @@ internal sealed class RegistrationInfo
         var parameterType = isParameterized
             ? attributeType.TypeArguments[1]
             : null;
+        var unsupportedType = !CanBeReferencedFromGeneratedModule(viewModelType)
+            ? viewModelType
+            : parameterType is not null && !CanBeReferencedFromGeneratedModule(parameterType)
+                ? parameterType
+                : null;
+        if (unsupportedType is not null)
+        {
+            var typeName = unsupportedType.ToDisplayString(FullyQualifiedFormat);
+            return Invalid(
+                viewTypeName,
+                location,
+                Diagnostic.Create(
+                    DiagnosticDescriptors.InvalidView,
+                    location,
+                    typeName));
+        }
 
         if (parameterType is not null &&
             HasMismatchedNavigationParameter(parameterType, viewModelType))
@@ -123,13 +139,29 @@ internal sealed class RegistrationInfo
             diagnostic);
     }
 
-    private static bool ContainsTypeParameter(INamedTypeSymbol type)
+    private static bool CanBeReferencedFromGeneratedModule(ITypeSymbol type)
     {
-        for (var current = type; current is not null; current = current.ContainingType)
-            if (current.Arity != 0)
-                return true;
+        if (type is IArrayTypeSymbol arrayType)
+            return CanBeReferencedFromGeneratedModule(arrayType.ElementType);
 
-        return false;
+        if (type is IPointerTypeSymbol pointerType)
+            return CanBeReferencedFromGeneratedModule(pointerType.PointedAtType);
+
+        if (type is not INamedTypeSymbol namedType) return type.TypeKind != TypeKind.TypeParameter;
+
+        for (var current = namedType; current is not null; current = current.ContainingType)
+        {
+            if (current.IsUnboundGenericType ||
+                current.IsFileLocal ||
+                current.DeclaredAccessibility is not Accessibility.Public and
+                    not Accessibility.Internal and
+                    not Accessibility.ProtectedOrInternal ||
+                current.TypeArguments.Any(static argument =>
+                    !CanBeReferencedFromGeneratedModule(argument)))
+                return false;
+        }
+
+        return true;
     }
 
     private static bool HasMismatchedNavigationParameter(

@@ -18,8 +18,8 @@
         <ProjectReference Include="..\BetterWinUI.Navigation.Frame\BetterWinUI.Navigation.Frame.csproj"/>
         <ProjectReference
                 Include="..\BetterWinUI.Navigation.Generator\BetterWinUI.Navigation.Generator.csproj"
-                ReferenceOutputAssembly="false"
                 OutputItemType="Analyzer"/>
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp"/>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection"/>
         <PackageReference Include="Microsoft.NET.Test.Sdk"/>
         <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all"/>
