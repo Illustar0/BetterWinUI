@@ -211,6 +211,11 @@ public sealed class PageActivationTests
                 """,
                 "Scoped.cs"));
         scoped.AssertGeneratorDiagnostic("BWPA0009");
+        Assert.Equal(
+            "https://github.com/Illustar0/BetterWinUI/blob/main/src/" +
+            "BetterWinUI.DependencyInjection.PageActivation/README.md#bwpa0009",
+            scoped.RunResult.Diagnostics.First(static diagnostic =>
+                diagnostic.Id == "BWPA0009").Descriptor.HelpLinkUri);
 
         var missingPageConstructor = GeneratorTestHost.Run(
             "MissingPageConstructorDiagnostic",

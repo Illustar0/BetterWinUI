@@ -73,3 +73,61 @@ services.AddBetterPageActivation(static options =>
 Call `InitializeBetterPageActivation` exactly once after the service provider is built and before navigating to a Page.
 
 `ServiceLifetime.Scoped` is rejected until navigation scope ownership and disposal are defined.
+
+## Diagnostics
+
+### BWPA0001
+
+The application type must be declared `partial` so the generator can extend it.
+
+### BWPA0002
+
+`[PageActivation]` must target a concrete, non-generic, top-level WinUI `Application` subclass.
+
+### BWPA0003
+
+Only one application type per assembly can use `[PageActivation]`.
+
+### BWPA0004
+
+The XAML compiler output must expose one native `IXamlMetadataProvider` property on the application type.
+
+### BWPA0005
+
+Rename a user-declared `InitializeBetterPageActivation` member so the generator can emit its initialization method.
+
+### BWPA0006
+
+`[View]` must target an accessible, concrete, non-generic WinUI `Page` subclass.
+
+### BWPA0007
+
+`[ViewModel]` must target an accessible, concrete, non-abstract, closed class.
+
+### BWPA0009
+
+Generated registrations cannot use `ServiceLifetime.Scoped` until navigation scope ownership and disposal are implemented.
+
+### BWPA0010
+
+A referenced generated view module uses an incompatible page activation contract version.
+
+### BWPA0011
+
+The generated ViewModel registration has no public constructor; provide an explicit DI factory before calling `AddBetterPageActivation`.
+
+### BWPA0012
+
+No `InitializeBetterPageActivation` call was found for the application type.
+
+### BWPA0013
+
+The referenced Windows App SDK XAML interfaces do not expose the interception contract required by the generator.
+
+### BWPA0014
+
+The generated Page registration has no public constructor; provide an explicit DI factory before calling `AddBetterPageActivation`.
+
+### BWPA0015
+
+Generated registrations support only `ServiceLifetime.Transient` and `ServiceLifetime.Singleton`.

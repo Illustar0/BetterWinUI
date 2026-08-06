@@ -10,7 +10,8 @@ internal static class DiagnosticDescriptors
     private const string Category = "BetterWinUI.PageActivation";
 
     private const string HelpRoot =
-        "https://github.com/BetterWinUI/BetterWinUI.DependencyInjection.PageActivation";
+        "https://github.com/Illustar0/BetterWinUI/blob/main/src/" +
+        "BetterWinUI.DependencyInjection.PageActivation/README.md";
 
     /// <summary>The application must be partial.</summary>
     public static readonly DiagnosticDescriptor AppMustBePartial = Create(
