@@ -37,7 +37,7 @@ public sealed class PageActivationGenerator : IIncrementalGenerator
             .CreateSyntaxProvider(
                 static (node, _) => IsInitializeBetterPageActivationInvocation(node),
                 static (syntaxContext, cancellationToken) =>
-                    GetContainingTypeName(syntaxContext, cancellationToken))
+                    GetInitializationTargetTypeName(syntaxContext, cancellationToken))
             .Where(static typeName => typeName is not null)
             .Select(static (typeName, _) => typeName!);
 
@@ -106,14 +106,20 @@ public sealed class PageActivationGenerator : IIncrementalGenerator
         };
     }
 
-    private static string? GetContainingTypeName(
+    private static string? GetInitializationTargetTypeName(
         GeneratorSyntaxContext context,
         CancellationToken cancellationToken)
     {
-        var enclosingSymbol = context.SemanticModel.GetEnclosingSymbol(
-            context.Node.SpanStart,
-            cancellationToken);
+        var invocation = (InvocationExpressionSyntax)context.Node;
+        if (invocation.Expression is MemberAccessExpressionSyntax member)
+            return context.SemanticModel
+                .GetTypeInfo(member.Expression, cancellationToken)
+                .Type?
+                .ToGlobalDisplayString();
 
+        var enclosingSymbol = context.SemanticModel.GetEnclosingSymbol(
+            invocation.SpanStart,
+            cancellationToken);
         return enclosingSymbol?.ContainingType?.ToGlobalDisplayString();
     }
 }

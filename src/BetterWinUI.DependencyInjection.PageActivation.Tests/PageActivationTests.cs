@@ -305,6 +305,52 @@ public sealed class PageActivationTests
     }
 
     /// <summary>
+    /// Verifies initialization detection requires the generated application receiver.
+    /// </summary>
+    [Fact]
+    public void InitializationDetectionRequiresApplicationReceiver()
+    {
+        var unrelatedReceiver = GeneratorTestHost.Run(
+            "UnrelatedInitializationReceiver",
+            (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
+            (
+                """
+                using BetterWinUI.DependencyInjection.PageActivation;
+                using Microsoft.UI.Xaml;
+                using Microsoft.UI.Xaml.Controls;
+                namespace Fixture;
+
+                public sealed class MainPage : Page;
+
+                [PageActivation]
+                public sealed partial class App : Application
+                {
+                    private readonly OtherComponent other = new();
+
+                    public void Initialize(System.IServiceProvider services) =>
+                        other.InitializeBetterPageActivation(services);
+                }
+
+                public sealed class OtherComponent
+                {
+                    public void InitializeBetterPageActivation(
+                        System.IServiceProvider services) { }
+                }
+                """,
+                "App.cs"),
+            (GeneratorTestHost.NativeProviderSource, "XamlTypeInfo.g.cs"));
+
+        unrelatedReceiver.AssertNoErrors();
+        unrelatedReceiver.AssertGeneratorDiagnostic("BWPA0012");
+
+        var applicationReceiver = GeneratorTestHost.GenerateValidApplication();
+        applicationReceiver.AssertNoErrors();
+        Assert.DoesNotContain(
+            applicationReceiver.RunResult.Diagnostics,
+            static diagnostic => diagnostic.Id == "BWPA0012");
+    }
+
+    /// <summary>
     /// Verifies record classes participate in generated ViewModel registration.
     /// </summary>
     [Fact]
