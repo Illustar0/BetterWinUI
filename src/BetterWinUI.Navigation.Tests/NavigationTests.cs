@@ -140,10 +140,72 @@ public sealed class NavigationTests
             [ViewFor<FileViewModel>("file-view-model")]
             public sealed class FileViewModelPage;
             """;
+        var result = RunNavigationGenerator("InvalidNavigationTypes", source);
+
+        Assert.Contains(
+            result.RunResult.Diagnostics,
+            static diagnostic => diagnostic.Id == "BWNAV002");
+        Assert.DoesNotContain(
+            result.OutputCompilation.GetDiagnostics(TestContext.Current.CancellationToken),
+            static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+    }
+
+    /// <summary>
+    /// Verifies record classes participate in generated navigation registration.
+    /// </summary>
+    [Fact]
+    public void GeneratorRegistersRecordClassViews()
+    {
+        const string source =
+            """
+            using BetterWinUI.Navigation;
+            namespace Fixture;
+
+            public sealed class HomeViewModel;
+            public sealed class DetailViewModel;
+            public sealed class DetailArgs;
+
+            [ViewFor<HomeViewModel>("home")]
+            public sealed record HomeView;
+
+            [ViewFor<DetailViewModel, DetailArgs>("detail")]
+            public sealed record DetailView;
+            """;
+        var result = RunNavigationGenerator("RecordNavigationViews", source);
+
+        Assert.DoesNotContain(
+            result.OutputCompilation.GetDiagnostics(TestContext.Current.CancellationToken),
+            static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        var generated = result.RunResult.Results
+            .SelectMany(static generator => generator.GeneratedSources)
+            .Single(static generatedSource => generatedSource.HintName.Contains(
+                "Navigation.ViewModule",
+                StringComparison.Ordinal))
+            .SourceText
+            .ToString();
+        Assert.Contains(
+            "builder.Register<global::Fixture.HomeViewModel, global::Fixture.HomeView>",
+            generated,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "builder.Register<global::Fixture.DetailViewModel, global::Fixture.DetailView, global::Fixture.DetailArgs>",
+            generated,
+            StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Runs the navigation generator against one source fixture.
+    /// </summary>
+    private static (
+        GeneratorDriverRunResult RunResult,
+        CSharpCompilation OutputCompilation) RunNavigationGenerator(
+        string assemblyName,
+        string source)
+    {
         var cancellationToken = TestContext.Current.CancellationToken;
         var parseOptions = new CSharpParseOptions(LanguageVersion.Preview);
         var compilation = CSharpCompilation.Create(
-            "InvalidNavigationTypes",
+            assemblyName,
             [CSharpSyntaxTree.ParseText(
                 source,
                 parseOptions,
@@ -159,13 +221,7 @@ public sealed class NavigationTests
             out var output,
             out _,
             cancellationToken);
-
-        Assert.Contains(
-            driver.GetRunResult().Diagnostics,
-            static diagnostic => diagnostic.Id == "BWNAV002");
-        Assert.DoesNotContain(
-            output.GetDiagnostics(cancellationToken),
-            static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        return (driver.GetRunResult(), (CSharpCompilation)output);
     }
 
     /// <summary>

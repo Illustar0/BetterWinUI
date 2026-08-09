@@ -16,7 +16,7 @@ public sealed class NavigationGenerator : IIncrementalGenerator
         var parameterless =
             context.SyntaxProvider.ForAttributeWithMetadataName(
                 MetadataNames.ViewForAttribute,
-                static (node, _) => node is ClassDeclarationSyntax,
+                static (node, _) => node is TypeDeclarationSyntax,
                 static (syntaxContext, cancellationToken) =>
                     RegistrationInfo.Create(
                         syntaxContext,
@@ -26,7 +26,7 @@ public sealed class NavigationGenerator : IIncrementalGenerator
         var parameterized =
             context.SyntaxProvider.ForAttributeWithMetadataName(
                 MetadataNames.ParameterizedViewForAttribute,
-                static (node, _) => node is ClassDeclarationSyntax,
+                static (node, _) => node is TypeDeclarationSyntax,
                 static (syntaxContext, cancellationToken) =>
                     RegistrationInfo.Create(
                         syntaxContext,
