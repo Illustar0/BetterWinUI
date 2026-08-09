@@ -52,6 +52,32 @@ public sealed class PageActivationTests
     }
 
     /// <summary>
+    /// Verifies an interface-typed native XAML provider is accepted.
+    /// </summary>
+    [Fact]
+    public void InterfaceTypedNativeProviderIsAccepted()
+    {
+        var providerSource = GeneratorTestHost.NativeProviderSource.Replace(
+            "private NativeProvider _AppProvider { get; } = new();",
+            "private IXamlMetadataProvider _AppProvider { get; } = new NativeProvider();",
+            StringComparison.Ordinal);
+        var result = GeneratorTestHost.Run(
+            "InterfaceTypedNativeProvider",
+            (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
+            (GeneratorTestHost.ValidApplicationSource, "App.cs"),
+            (providerSource, "XamlTypeInfo.g.cs"));
+
+        result.AssertNoErrors();
+        Assert.DoesNotContain(
+            result.RunResult.Diagnostics,
+            static diagnostic => diagnostic.Id == "BWPA0004");
+        Assert.Contains(
+            "this._AppProvider",
+            result.GetGeneratedSource("App.PageActivation.g.cs"),
+            StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// Verifies DI composition is available during WinUI's first markup compilation pass.
     /// </summary>
     [Fact]

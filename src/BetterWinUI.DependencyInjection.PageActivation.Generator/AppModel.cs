@@ -188,13 +188,13 @@ internal readonly struct AppModel : IEquatable<AppModel>
             property.GetMethod is null ||
             property.SetMethod is not null ||
             property.DeclaredAccessibility != Accessibility.Private ||
-            SymbolEqualityComparer.Default.Equals(property.Type, xamlProviderInterface) ||
             property.Type is not INamedTypeSymbol propertyType)
             return false;
 
-        return propertyType.AllInterfaces.Any(implemented => SymbolEqualityComparer.Default.Equals(
-            implemented,
-            xamlProviderInterface));
+        return SymbolEqualityComparer.Default.Equals(propertyType, xamlProviderInterface) ||
+               propertyType.AllInterfaces.Any(implemented => SymbolEqualityComparer.Default.Equals(
+                   implemented,
+                   xamlProviderInterface));
     }
 
     private static bool IsGeneratedMember(ISymbol member)
