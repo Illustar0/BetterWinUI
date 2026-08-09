@@ -55,10 +55,14 @@ public sealed class NavigationTests
         Assert.True(navigation.NavigateToViewModel<HomeViewModel>());
         Assert.Equal(typeof(HomePage), host.LastPageType);
         Assert.Null(host.LastParameter);
+        Assert.Equal(1, host.ParameterlessNavigateCount);
+        Assert.Equal(0, host.ParameterizedNavigateCount);
 
         var args = new DetailArgs(42);
         Assert.True(navigation.NavigateToViewModel<DetailViewModel, DetailArgs>(args));
         Assert.Same(args, host.LastParameter);
+        Assert.Equal(1, host.ParameterlessNavigateCount);
+        Assert.Equal(1, host.ParameterizedNavigateCount);
         Assert.False(navigation.TryNavigateToRoute("missing"));
         Assert.False(navigation.TryNavigateToRoute("detail"));
         Assert.False(navigation.TryNavigateToRoute("detail", "wrong"));
@@ -240,6 +244,12 @@ public sealed class TestFrameNavigationHost : IFrameNavigationHost
     /// <summary>Gets the last requested parameter.</summary>
     public object? LastParameter { get; private set; }
 
+    /// <summary>Gets the number of parameterless navigation requests.</summary>
+    public int ParameterlessNavigateCount { get; private set; }
+
+    /// <summary>Gets the number of parameterized navigation requests.</summary>
+    public int ParameterizedNavigateCount { get; private set; }
+
     /// <summary>Gets the number of back requests.</summary>
     public int GoBackCount { get; private set; }
 
@@ -255,6 +265,7 @@ public sealed class TestFrameNavigationHost : IFrameNavigationHost
     /// <inheritdoc />
     public bool Navigate(Type pageType)
     {
+        ParameterlessNavigateCount++;
         LastPageType = pageType;
         LastParameter = null;
         return true;
@@ -263,6 +274,7 @@ public sealed class TestFrameNavigationHost : IFrameNavigationHost
     /// <inheritdoc />
     public bool Navigate(Type pageType, object? parameter)
     {
+        ParameterizedNavigateCount++;
         LastPageType = pageType;
         LastParameter = parameter;
         return true;

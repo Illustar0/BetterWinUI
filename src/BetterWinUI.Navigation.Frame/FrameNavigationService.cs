@@ -155,8 +155,11 @@ public sealed class FrameNavigationService<THost>
                 $"View type '{destination.ViewType}' registered for route " +
                 $"'{destination.Route}' must derive from '{typeof(Page)}' for Frame navigation.");
 
-        return transitionInfo is null
-            ? Host.Navigate(destination.ViewType, parameter)
-            : Host.Navigate(destination.ViewType, parameter, transitionInfo);
+        if (transitionInfo is not null)
+            return Host.Navigate(destination.ViewType, parameter, transitionInfo);
+
+        return parameter is null
+            ? Host.Navigate(destination.ViewType)
+            : Host.Navigate(destination.ViewType, parameter);
     }
 }
