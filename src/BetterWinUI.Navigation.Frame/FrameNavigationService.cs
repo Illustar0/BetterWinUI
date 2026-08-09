@@ -40,7 +40,7 @@ public sealed class FrameNavigationService<THost>
     {
         var destination = _registry.GetByViewModel<TViewModel>();
         EnsureParameterless(destination);
-        return Navigate(destination, null, transitionInfo);
+        return Navigate(destination, transitionInfo);
     }
 
     /// <summary>Navigates to a ViewModel destination with runtime parameter validation.</summary>
@@ -87,7 +87,7 @@ public sealed class FrameNavigationService<THost>
     {
         return _registry.TryGetByRoute(route, out var destination) &&
                !destination.RequiresParameter &&
-               Navigate(destination, null, transitionInfo);
+               Navigate(destination, transitionInfo);
     }
 
     /// <summary>Attempts to navigate to a parameterized route.</summary>
@@ -147,19 +147,32 @@ public sealed class FrameNavigationService<THost>
 
     private bool Navigate(
         NavigationDestination destination,
-        object? parameter,
         NavigationTransitionInfo? transitionInfo)
+    {
+        var pageType = GetPageType(destination);
+        return transitionInfo is null
+            ? Host.Navigate(pageType)
+            : Host.Navigate(pageType, null, transitionInfo);
+    }
+
+    private bool Navigate(
+        NavigationDestination destination,
+        object parameter,
+        NavigationTransitionInfo? transitionInfo)
+    {
+        var pageType = GetPageType(destination);
+        return transitionInfo is null
+            ? Host.Navigate(pageType, parameter)
+            : Host.Navigate(pageType, parameter, transitionInfo);
+    }
+
+    private static Type GetPageType(NavigationDestination destination)
     {
         if (!typeof(Page).IsAssignableFrom(destination.ViewType))
             throw new InvalidOperationException(
                 $"View type '{destination.ViewType}' registered for route " +
                 $"'{destination.Route}' must derive from '{typeof(Page)}' for Frame navigation.");
 
-        if (transitionInfo is not null)
-            return Host.Navigate(destination.ViewType, parameter, transitionInfo);
-
-        return parameter is null
-            ? Host.Navigate(destination.ViewType)
-            : Host.Navigate(destination.ViewType, parameter);
+        return destination.ViewType;
     }
 }
