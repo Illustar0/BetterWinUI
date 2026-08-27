@@ -68,23 +68,13 @@ internal readonly struct AppModel : IEquatable<AppModel>
         CancellationToken cancellationToken)
     {
         var symbol = (INamedTypeSymbol)context.TargetSymbol;
-        var attribute = context.Attributes[0];
-        var attributeLocation =
-            attribute.ApplicationSyntaxReference?.GetSyntax(cancellationToken).GetLocation() ??
-            symbol.Locations[0];
-        var location = symbol.GetSourceLocation(attributeLocation);
+        var location = GetLocation(symbol, context.Attributes[0], cancellationToken);
         var diagnostics = ImmutableArray.CreateBuilder<DiagnosticInfo>();
 
         var applicationType =
             context.SemanticModel.Compilation.GetTypeByMetadataName(MetadataNames.Application);
 
-        var supportedShape =
-            symbol.TypeKind == TypeKind.Class &&
-            !symbol.IsAbstract &&
-            symbol.Arity == 0 &&
-            symbol.ContainingType is null &&
-            !symbol.ContainingNamespace.IsGlobalNamespace &&
-            symbol.DerivesFrom(applicationType);
+        var supportedShape = IsSupportedApplication(symbol, applicationType);
 
         if (!supportedShape)
             diagnostics.Add(new DiagnosticInfo(
@@ -113,18 +103,10 @@ internal readonly struct AppModel : IEquatable<AppModel>
             context.SemanticModel.Compilation.GetTypeByMetadataName(
                 MetadataNames.XamlMetadataProvider);
 
-        var providerProperties = symbol
-            .GetMembers()
-            .OfType<IPropertySymbol>()
-            .Where(property => IsNativeProviderProperty(property, xamlProviderInterface))
-            .ToImmutableArray();
-
-        var xamlOutputReady = context.SemanticModel.Compilation.SyntaxTrees.Any(static tree =>
-            tree.FilePath.EndsWith("XamlTypeInfo.g.cs", StringComparison.OrdinalIgnoreCase) &&
-            tree.Length > 0);
-
-        var providerPropertyName =
-            providerProperties.Length == 1 ? providerProperties[0].Name : null;
+        var providerPropertyName = GetNativeProviderPropertyName(
+            symbol,
+            xamlProviderInterface);
+        var xamlOutputReady = IsXamlOutputReady(context.SemanticModel.Compilation);
 
         if (xamlOutputReady && providerPropertyName is null)
             diagnostics.Add(new DiagnosticInfo(
@@ -177,6 +159,48 @@ internal readonly struct AppModel : IEquatable<AppModel>
             hashCode = (hashCode * HashCodeValues.Multiplier) ^ IsValid.GetHashCode();
             return (hashCode * HashCodeValues.Multiplier) ^ Diagnostics.Length;
         }
+    }
+
+    private static DiagnosticLocation GetLocation(
+        INamedTypeSymbol symbol,
+        AttributeData attribute,
+        CancellationToken cancellationToken)
+    {
+        var attributeLocation =
+            attribute.ApplicationSyntaxReference?.GetSyntax(cancellationToken).GetLocation() ??
+            symbol.Locations[0];
+        return symbol.GetSourceLocation(attributeLocation);
+    }
+
+    private static bool IsXamlOutputReady(Compilation compilation)
+    {
+        return compilation.SyntaxTrees.Any(static tree =>
+            tree.FilePath.EndsWith("XamlTypeInfo.g.cs", StringComparison.OrdinalIgnoreCase) &&
+            tree.Length > 0);
+    }
+
+    private static bool IsSupportedApplication(
+        INamedTypeSymbol symbol,
+        INamedTypeSymbol? applicationType)
+    {
+        return symbol.TypeKind == TypeKind.Class &&
+               !symbol.IsAbstract &&
+               symbol.Arity == 0 &&
+               symbol.ContainingType is null &&
+               !symbol.ContainingNamespace.IsGlobalNamespace &&
+               symbol.DerivesFrom(applicationType);
+    }
+
+    private static string? GetNativeProviderPropertyName(
+        INamedTypeSymbol symbol,
+        INamedTypeSymbol? xamlProviderInterface)
+    {
+        var providerProperties = symbol
+            .GetMembers()
+            .OfType<IPropertySymbol>()
+            .Where(property => IsNativeProviderProperty(property, xamlProviderInterface))
+            .ToImmutableArray();
+        return providerProperties.Length == 1 ? providerProperties[0].Name : null;
     }
 
     private static bool IsNativeProviderProperty(
