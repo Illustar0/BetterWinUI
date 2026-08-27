@@ -39,9 +39,10 @@ internal sealed class GenerationModel
     {
         var all = parameterless.AddRange(parameterized);
         var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
-        foreach (var registration in all)
-            if (registration.Diagnostic is not null)
-                diagnostics.Add(registration.Diagnostic);
+        foreach (var registration in all.Where(static registration => registration.Diagnostic is not null))
+        {
+            diagnostics.Add(registration.Diagnostic!);
+        }
 
         var valid = all.Where(static item => item.IsValid).ToArray();
         var conflicting = new HashSet<RegistrationInfo>();
@@ -70,13 +71,15 @@ internal sealed class GenerationModel
         foreach (var group in registrations
                      .GroupBy(getKey, StringComparer.Ordinal)
                      .Where(static group => group.Count() > 1))
-        foreach (var registration in group)
         {
-            conflicting.Add(registration);
-            diagnostics.Add(Diagnostic.Create(
-                DiagnosticDescriptors.ConflictingMapping,
-                registration.Location,
-                $"{keyKind} '{group.Key}'"));
+            foreach (var registration in group)
+            {
+                conflicting.Add(registration);
+                diagnostics.Add(Diagnostic.Create(
+                    DiagnosticDescriptors.ConflictingMapping,
+                    registration.Location,
+                    $"{keyKind} '{group.Key}'"));
+            }
         }
     }
 }
