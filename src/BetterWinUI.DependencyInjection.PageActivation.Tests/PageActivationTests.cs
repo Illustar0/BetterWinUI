@@ -175,10 +175,12 @@ public sealed class PageActivationTests
         var nativeProvider = loaded.CreateNativeProvider();
         var generatedProvider = loaded.CreateGeneratedProvider(nativeProvider);
         var mainPageType = loaded.GetType("Fixture.MainPage");
-        var wrappedType = loaded.GetXamlType(generatedProvider, mainPageType);
+        var wrappedType = LoadedApplication.GetXamlType(generatedProvider, mainPageType);
 
-        Assert.Throws<InvalidOperationException>(() => loaded.Activate(wrappedType));
-        Assert.Same(wrappedType, loaded.GetXamlType(generatedProvider, mainPageType));
+        Assert.Throws<InvalidOperationException>(() => LoadedApplication.Activate(wrappedType));
+        Assert.Same(
+            wrappedType,
+            LoadedApplication.GetXamlType(generatedProvider, mainPageType));
 
         var registeredServices = new ServiceCollection();
         var clockContract = loaded.GetType("Fixture.IClock");
@@ -186,10 +188,11 @@ public sealed class PageActivationTests
         registeredServices.AddKeyedSingleton(clockContract, "clock", clockImplementation);
         loaded.AddBetterPageActivation(registeredServices, null);
         using var registeredProvider = registeredServices.BuildServiceProvider();
-        loaded.Initialize(generatedProvider, registeredProvider);
-        var activated = loaded.Activate(wrappedType);
+        LoadedApplication.Initialize(generatedProvider, registeredProvider);
+        var activated = LoadedApplication.Activate(wrappedType);
         Assert.Equal(mainPageType, activated.GetType());
-        Assert.Throws<InvalidOperationException>(() => loaded.Initialize(generatedProvider, registeredProvider));
+        Assert.Throws<InvalidOperationException>(() =>
+            LoadedApplication.Initialize(generatedProvider, registeredProvider));
 
         var unregisteredPage = loaded.GetType("Fixture.UnregisteredPage");
         var strictServices = new ServiceCollection();
@@ -197,9 +200,11 @@ public sealed class PageActivationTests
         using var strictProvider = strictServices.BuildServiceProvider();
         var strictGeneratedProvider =
             loaded.CreateGeneratedProvider(loaded.CreateNativeProvider());
-        loaded.Initialize(strictGeneratedProvider, strictProvider);
-        var strictXamlType = loaded.GetXamlType(strictGeneratedProvider, unregisteredPage);
-        Assert.Throws<InvalidOperationException>(() => loaded.Activate(strictXamlType));
+        LoadedApplication.Initialize(strictGeneratedProvider, strictProvider);
+        var strictXamlType =
+            LoadedApplication.GetXamlType(strictGeneratedProvider, unregisteredPage);
+        Assert.Throws<InvalidOperationException>(() =>
+            LoadedApplication.Activate(strictXamlType));
 
         var fallbackServices = new ServiceCollection();
         fallbackServices
@@ -210,12 +215,12 @@ public sealed class PageActivationTests
         using var fallbackProvider = fallbackServices.BuildServiceProvider();
         var fallbackGeneratedProvider =
             loaded.CreateGeneratedProvider(loaded.CreateNativeProvider());
-        loaded.Initialize(fallbackGeneratedProvider, fallbackProvider);
+        LoadedApplication.Initialize(fallbackGeneratedProvider, fallbackProvider);
         var fallbackXamlType =
-            loaded.GetXamlType(fallbackGeneratedProvider, unregisteredPage);
+            LoadedApplication.GetXamlType(fallbackGeneratedProvider, unregisteredPage);
         Assert.Equal(
             $"native:{unregisteredPage.Name}",
-            loaded.Activate(fallbackXamlType));
+            LoadedApplication.Activate(fallbackXamlType));
     }
 
     /// <summary>
@@ -1014,7 +1019,7 @@ internal sealed class LoadedApplication(Assembly assembly)
     /// <summary>
     /// Initializes a generated provider.
     /// </summary>
-    public void Initialize(object generatedProvider, IServiceProvider services)
+    public static void Initialize(object generatedProvider, IServiceProvider services)
     {
         Invoke(generatedProvider, "Initialize", services);
     }
@@ -1022,7 +1027,7 @@ internal sealed class LoadedApplication(Assembly assembly)
     /// <summary>
     /// Resolves an IXamlType through a generated provider.
     /// </summary>
-    public object GetXamlType(object generatedProvider, Type type)
+    public static object GetXamlType(object generatedProvider, Type type)
     {
         return Invoke(generatedProvider, "GetXamlType", type)!;
     }
@@ -1030,7 +1035,7 @@ internal sealed class LoadedApplication(Assembly assembly)
     /// <summary>
     /// Activates a resolved IXamlType.
     /// </summary>
-    public object Activate(object xamlType)
+    public static object Activate(object xamlType)
     {
         return Invoke(xamlType, "ActivateInstance")!;
     }
