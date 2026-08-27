@@ -146,23 +146,34 @@ public sealed class PageActivationTests
             manualViewModelType,
             manualPageType.GetProperty("ViewModel")!.GetValue(manualPage)!.GetType());
 
+    }
+
+    /// <summary>
+    /// Verifies explicit registrations take precedence over generated defaults.
+    /// </summary>
+    [Fact]
+    public void ExplicitRegistrationsTakePrecedence()
+    {
+        var loaded = GeneratorTestHost.LoadValidApplication();
+        var clockContract = loaded.GetType("Fixture.IClock");
+        var clockImplementation = loaded.GetType("Fixture.Clock");
+        var mainPageType = loaded.GetType("Fixture.MainPage");
         var explicitViewModel = Activator.CreateInstance(
             loaded.GetType("Fixture.MainViewModel"))!;
-        var overrideServices = new ServiceCollection();
-        overrideServices.AddKeyedSingleton(clockContract, "clock", clockImplementation);
-        overrideServices.AddSingleton(explicitViewModel.GetType(), explicitViewModel);
-        overrideServices.AddSingleton(
+        var services = new ServiceCollection();
+        services.AddKeyedSingleton(clockContract, "clock", clockImplementation);
+        services.AddSingleton(explicitViewModel.GetType(), explicitViewModel);
+        services.AddSingleton(
             mainPageType,
             serviceProvider => ActivatorUtilities.CreateInstance(serviceProvider, mainPageType));
-        loaded.AddBetterPageActivation(overrideServices, null);
-        using var overrideProvider = overrideServices.BuildServiceProvider();
-        var overriddenPage = overrideProvider.GetRequiredService(mainPageType);
-        Assert.Same(
-            overriddenPage,
-            overrideProvider.GetRequiredService(mainPageType));
+        loaded.AddBetterPageActivation(services, null);
+
+        using var provider = services.BuildServiceProvider();
+        var page = provider.GetRequiredService(mainPageType);
+        Assert.Same(page, provider.GetRequiredService(mainPageType));
         Assert.Same(
             explicitViewModel,
-            mainPageType.GetProperty("ViewModel")!.GetValue(overriddenPage));
+            mainPageType.GetProperty("ViewModel")!.GetValue(page));
     }
 
     /// <summary>
