@@ -62,12 +62,8 @@ internal sealed class RegistrationInfo
                     location,
                     viewTypeName));
 
-        var route = attribute.ConstructorArguments.Length == 1
-            ? attribute.ConstructorArguments[0].Value as string ?? string.Empty
-            : string.Empty;
-        if (route.Length == 0 ||
-            char.IsWhiteSpace(route[0]) ||
-            char.IsWhiteSpace(route[route.Length - 1]))
+        var route = GetRoute(attribute);
+        if (!IsValidRoute(route))
             return Invalid(
                 viewTypeName,
                 location,
@@ -78,51 +74,74 @@ internal sealed class RegistrationInfo
 
         var attributeType = attribute.AttributeClass!;
         var viewModelType = attributeType.TypeArguments[0];
-        var viewModelTypeName = viewModelType.ToDisplayString(FullyQualifiedFormat);
-        var parameterType = isParameterized
-            ? attributeType.TypeArguments[1]
-            : null;
-        var unsupportedType = !CanBeReferencedFromGeneratedModule(viewModelType)
-            ? viewModelType
-            : parameterType is not null && !CanBeReferencedFromGeneratedModule(parameterType)
-                ? parameterType
-                : null;
+        var parameterType = isParameterized ? attributeType.TypeArguments[1] : null;
+        var unsupportedType = GetUnsupportedType(viewModelType, parameterType);
         if (unsupportedType is not null)
-        {
-            var typeName = unsupportedType.ToDisplayString(FullyQualifiedFormat);
             return Invalid(
                 viewTypeName,
                 location,
                 Diagnostic.Create(
                     DiagnosticDescriptors.InvalidView,
                     location,
-                    typeName));
-        }
+                    unsupportedType.ToDisplayString(FullyQualifiedFormat)));
 
-        if (parameterType is not null &&
-            HasMismatchedNavigationParameter(parameterType, viewModelType))
-        {
-            var parameterTypeName = parameterType.ToDisplayString(FullyQualifiedFormat);
-            return new RegistrationInfo(
-                viewTypeName,
-                viewModelTypeName,
-                parameterTypeName,
-                route,
+        return CreateRegistration(
+            viewTypeName,
+            viewModelType,
+            parameterType,
+            route,
+            location);
+    }
+
+    private static string GetRoute(AttributeData attribute)
+    {
+        return attribute.ConstructorArguments.Length == 1
+            ? attribute.ConstructorArguments[0].Value as string ?? string.Empty
+            : string.Empty;
+    }
+
+    private static bool IsValidRoute(string route)
+    {
+        return route.Length > 0 &&
+               !char.IsWhiteSpace(route[0]) &&
+               !char.IsWhiteSpace(route[route.Length - 1]);
+    }
+
+    private static ITypeSymbol? GetUnsupportedType(
+        ITypeSymbol viewModelType,
+        ITypeSymbol? parameterType)
+    {
+        if (!CanBeReferencedFromGeneratedModule(viewModelType)) return viewModelType;
+
+        return parameterType is not null && !CanBeReferencedFromGeneratedModule(parameterType)
+            ? parameterType
+            : null;
+    }
+
+    private static RegistrationInfo CreateRegistration(
+        string viewTypeName,
+        ITypeSymbol viewModelType,
+        ITypeSymbol? parameterType,
+        string route,
+        Location location)
+    {
+        var viewModelTypeName = viewModelType.ToDisplayString(FullyQualifiedFormat);
+        var parameterTypeName = parameterType?.ToDisplayString(FullyQualifiedFormat);
+        var diagnostic = parameterType is not null &&
+                         HasMismatchedNavigationParameter(parameterType, viewModelType)
+            ? Diagnostic.Create(
+                DiagnosticDescriptors.MismatchedParameterMarker,
                 location,
-                Diagnostic.Create(
-                    DiagnosticDescriptors.MismatchedParameterMarker,
-                    location,
-                    parameterTypeName,
-                    viewModelTypeName));
-        }
-
+                parameterTypeName,
+                viewModelTypeName)
+            : null;
         return new RegistrationInfo(
             viewTypeName,
             viewModelTypeName,
-            parameterType?.ToDisplayString(FullyQualifiedFormat),
+            parameterTypeName,
             route,
             location,
-            null);
+            diagnostic);
     }
 
     private static RegistrationInfo Invalid(
@@ -171,8 +190,10 @@ internal sealed class RegistrationInfo
         var hasMarker = false;
         foreach (var implementedInterface in parameterType.AllInterfaces)
         {
-            if (implementedInterface.OriginalDefinition.ToDisplayString() !=
-                "BetterWinUI.Navigation.INavigationParameter<TViewModel>")
+            if (!string.Equals(
+                    implementedInterface.OriginalDefinition.ToDisplayString(),
+                    "BetterWinUI.Navigation.INavigationParameter<TViewModel>",
+                    StringComparison.Ordinal))
                 continue;
 
             hasMarker = true;
