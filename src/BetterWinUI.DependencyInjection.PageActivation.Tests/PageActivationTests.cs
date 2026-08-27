@@ -552,12 +552,38 @@ public sealed class PageActivationTests
     [Fact]
     public void CrossAssemblyComposition()
     {
-        var winUiImage = GeneratorTestHost.Emit(
+        var winUiReference = CreateWinUiReference();
+        var viewsReference = CreateFeatureViewsReference(winUiReference);
+        var application = GenerateComposedApplication(winUiReference, viewsReference);
+
+        application.AssertNoErrors();
+        var source = application.GetGeneratedSource("App.PageActivation.g.cs");
+        Assert.Contains(
+            "global::BetterWinUI.DependencyInjection.PageActivation.Generated.PageActivationViewModule_",
+            source,
+            StringComparison.Ordinal);
+        Assert.Contains(".Register(services);", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddMappings", source, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Creates the WinUI contract reference used by cross-assembly generator tests.
+    /// </summary>
+    private static MetadataReference CreateWinUiReference()
+    {
+        var image = GeneratorTestHost.Emit(
             GeneratorTestHost.CreateCompilation(
                 "WinUI.Abstractions",
                 [(GeneratorTestHost.WinUiStubs, "WinUI.cs")]));
-        MetadataReference winUiReference = MetadataReference.CreateFromImage(winUiImage);
+        return MetadataReference.CreateFromImage(image);
+    }
 
+    /// <summary>
+    /// Creates a referenced assembly containing generated page registrations.
+    /// </summary>
+    private static MetadataReference CreateFeatureViewsReference(
+        MetadataReference winUiReference)
+    {
         var views = GeneratorTestHost.Run(
             GeneratorTestHost.CreateCompilation(
                 "Feature.Views",
@@ -577,9 +603,18 @@ public sealed class PageActivationTests
                 ],
                 [winUiReference]));
         views.AssertNoErrors();
-        var viewsImage = GeneratorTestHost.Emit(views.OutputCompilation);
+        return MetadataReference.CreateFromImage(
+            GeneratorTestHost.Emit(views.OutputCompilation));
+    }
 
-        var application = GeneratorTestHost.Run(
+    /// <summary>
+    /// Generates an application that composes local and referenced registrations.
+    /// </summary>
+    private static GenerationResult GenerateComposedApplication(
+        MetadataReference winUiReference,
+        MetadataReference viewsReference)
+    {
+        return GeneratorTestHost.Run(
             GeneratorTestHost.CreateCompilation(
                 "Composition.App",
                 [
@@ -622,15 +657,7 @@ public sealed class PageActivationTests
                         """,
                         "LocalPage.cs")
                 ],
-                [winUiReference, MetadataReference.CreateFromImage(viewsImage)]));
-        application.AssertNoErrors();
-        var source = application.GetGeneratedSource("App.PageActivation.g.cs");
-        Assert.Contains(
-            "global::BetterWinUI.DependencyInjection.PageActivation.Generated.PageActivationViewModule_",
-            source,
-            StringComparison.Ordinal);
-        Assert.Contains(".Register(services);", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("AddMappings", source, StringComparison.Ordinal);
+                [winUiReference, viewsReference]));
     }
 }
 
