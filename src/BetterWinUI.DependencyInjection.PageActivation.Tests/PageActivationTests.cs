@@ -70,7 +70,10 @@ public sealed class PageActivationTests
         result.AssertNoErrors();
         Assert.DoesNotContain(
             result.RunResult.Diagnostics,
-            static diagnostic => diagnostic.Id == "BWPA0004");
+            static diagnostic => string.Equals(
+                diagnostic.Id,
+                "BWPA0004",
+                StringComparison.Ordinal));
         Assert.Contains(
             "this._AppProvider",
             result.GetGeneratedSource("App.PageActivation.g.cs"),
@@ -240,8 +243,10 @@ public sealed class PageActivationTests
         Assert.Equal(
             "https://github.com/Illustar0/BetterWinUI/blob/main/src/" +
             "BetterWinUI.DependencyInjection.PageActivation/README.md#bwpa0009",
-            scoped.RunResult.Diagnostics.First(static diagnostic =>
-                diagnostic.Id == "BWPA0009").Descriptor.HelpLinkUri);
+            scoped.RunResult.Diagnostics.First(static diagnostic => string.Equals(
+                diagnostic.Id,
+                "BWPA0009",
+                StringComparison.Ordinal)).Descriptor.HelpLinkUri);
 
         var missingPageConstructor = GeneratorTestHost.Run(
             "MissingPageConstructorDiagnostic",
@@ -373,7 +378,10 @@ public sealed class PageActivationTests
         applicationReceiver.AssertNoErrors();
         Assert.DoesNotContain(
             applicationReceiver.RunResult.Diagnostics,
-            static diagnostic => diagnostic.Id == "BWPA0012");
+            static diagnostic => string.Equals(
+                diagnostic.Id,
+                "BWPA0012",
+                StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -1036,7 +1044,8 @@ internal sealed class LoadedApplication(Assembly assembly)
                     BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
                 .Single(candidate =>
                 {
-                    if (candidate.Name != methodName) return false;
+                    if (!string.Equals(candidate.Name, methodName, StringComparison.Ordinal))
+                        return false;
 
                     var parameters = candidate.GetParameters();
                     return parameters.Length == arguments.Length &&
