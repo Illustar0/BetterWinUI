@@ -243,6 +243,8 @@ public sealed class NavigationTests
     }
 }
 
+#pragma warning disable S2094 // Empty fixture types serve as distinct registration keys.
+
 /// <summary>Supplies a parameterless test destination.</summary>
 public sealed class HomeViewModel;
 
@@ -254,6 +256,8 @@ public sealed class GeneratedViewModel;
 
 /// <summary>Supplies a manually registered test destination.</summary>
 public sealed class ManualViewModel;
+
+#pragma warning restore S2094
 
 /// <summary>Supplies a compile-time associated navigation parameter.</summary>
 public sealed record DetailArgs(int Id) : INavigationParameter<DetailViewModel>;
