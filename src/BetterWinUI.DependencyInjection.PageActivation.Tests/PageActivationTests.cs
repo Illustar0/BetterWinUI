@@ -235,12 +235,12 @@ public sealed class PageActivationTests
     }
 
     /// <summary>
-    /// Verifies representative generator errors and warnings.
+    /// Verifies scoped registration diagnostics link to their documentation.
     /// </summary>
     [Fact]
-    public void GeneratorDiagnostics()
+    public void ScopedRegistrationDiagnosticIncludesDocumentation()
     {
-        var scoped = GeneratorTestHost.Run(
+        var result = GeneratorTestHost.Run(
             "ScopedDiagnostic",
             (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
             (
@@ -255,15 +255,23 @@ public sealed class PageActivationTests
                 public sealed class ViewModel;
                 """,
                 "Scoped.cs"));
-        scoped.AssertGeneratorDiagnostic("BWPA0009");
+
+        result.AssertGeneratorDiagnostic("BWPA0009");
         Assert.Equal(
             "https://github.com/Illustar0/BetterWinUI/blob/main/src/" +
             "BetterWinUI.DependencyInjection.PageActivation/README.md#bwpa0009",
-            scoped.RunResult.Diagnostics.First(static diagnostic => string.Equals(
+            result.RunResult.Diagnostics.First(static diagnostic => string.Equals(
                 diagnostic.Id,
                 "BWPA0009",
                 StringComparison.Ordinal)).Descriptor.HelpLinkUri);
+    }
 
+    /// <summary>
+    /// Verifies invalid page constructors and service lifetimes are diagnosed.
+    /// </summary>
+    [Fact]
+    public void InvalidRegistrationDiagnostics()
+    {
         var missingPageConstructor = GeneratorTestHost.Run(
             "MissingPageConstructorDiagnostic",
             (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
@@ -297,35 +305,42 @@ public sealed class PageActivationTests
                 """,
                 "UnsupportedLifetime.cs"));
         unsupportedLifetime.AssertGeneratorDiagnostic("BWPA0015");
+    }
 
+    /// <summary>
+    /// Verifies missing generated application infrastructure is diagnosed.
+    /// </summary>
+    [Fact]
+    public void MissingApplicationInfrastructureDiagnostics()
+    {
+        const string applicationSource =
+            """
+            using BetterWinUI.DependencyInjection.PageActivation;
+            using Microsoft.UI.Xaml;
+            namespace Fixture;
+            [PageActivation] public sealed partial class App : Application;
+            """;
         var missingProvider = GeneratorTestHost.Run(
             "MissingProviderDiagnostic",
             (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
-            (
-                """
-                using BetterWinUI.DependencyInjection.PageActivation;
-                using Microsoft.UI.Xaml;
-                namespace Fixture;
-                [PageActivation] public sealed partial class App : Application;
-                """,
-                "App.cs"),
+            (applicationSource, "App.cs"),
             ("namespace Fixture; internal sealed class XamlMarker;", "XamlTypeInfo.g.cs"));
         missingProvider.AssertGeneratorDiagnostic("BWPA0004");
 
         var missingInitialization = GeneratorTestHost.Run(
             "MissingInitializationDiagnostic",
             (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
-            (
-                """
-                using BetterWinUI.DependencyInjection.PageActivation;
-                using Microsoft.UI.Xaml;
-                namespace Fixture;
-                [PageActivation] public sealed partial class App : Application;
-                """,
-                "App.cs"),
+            (applicationSource, "App.cs"),
             (GeneratorTestHost.NativeProviderSource, "XamlTypeInfo.g.cs"));
         missingInitialization.AssertGeneratorDiagnostic("BWPA0012");
+    }
 
+    /// <summary>
+    /// Verifies unsupported XAML contracts are diagnosed.
+    /// </summary>
+    [Fact]
+    public void UnsupportedXamlContractDiagnostic()
+    {
         var unsupportedContract = GeneratorTestHost.Run(
             "UnsupportedContractDiagnostic",
             (
