@@ -144,7 +144,10 @@ public sealed class NavigationTests
 
         Assert.Contains(
             result.RunResult.Diagnostics,
-            static diagnostic => diagnostic.Id == "BWNAV002");
+            static diagnostic => string.Equals(
+                diagnostic.Id,
+                "BWNAV002",
+                StringComparison.Ordinal));
         Assert.DoesNotContain(
             result.OutputCompilation.GetDiagnostics(TestContext.Current.CancellationToken),
             static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
