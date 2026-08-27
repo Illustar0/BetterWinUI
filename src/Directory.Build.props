@@ -4,6 +4,7 @@
         <IsAotCompatible>true</IsAotCompatible>
         <LangVersion>preview</LangVersion>
         <Features>strict</Features>
+        <NoWarn>$(NoWarn);MA0048</NoWarn>
         <TrimmerSingleWarn>false</TrimmerSingleWarn>
         <CustomAfterMicrosoftCommonTargets>$(MSBuildThisFileDirectory)BetterWinUI.AfterCommon.targets</CustomAfterMicrosoftCommonTargets>
 
