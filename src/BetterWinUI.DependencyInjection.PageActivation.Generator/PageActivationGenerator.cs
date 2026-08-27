@@ -12,50 +12,24 @@ public sealed class PageActivationGenerator : IIncrementalGenerator
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        var apps = context.SyntaxProvider
-            .ForAttributeWithMetadataName(
-                MetadataNames.PageActivationAttribute,
-                static (node, _) => node is ClassDeclarationSyntax,
-                static (syntaxContext, cancellationToken) =>
-                    AppModel.Create(syntaxContext, cancellationToken));
-
-        var views = context.SyntaxProvider
-            .ForAttributeWithMetadataName(
-                MetadataNames.ViewAttribute,
-                static (node, _) => node is ClassDeclarationSyntax,
-                static (syntaxContext, cancellationToken) =>
-                    ViewInfo.Create(syntaxContext, cancellationToken));
-
-        var viewModels = context.SyntaxProvider
-            .ForAttributeWithMetadataName(
-                MetadataNames.ViewModelAttribute,
-                static (node, _) => node is TypeDeclarationSyntax,
-                static (syntaxContext, cancellationToken) =>
-                    ViewModelInfo.Create(syntaxContext, cancellationToken));
-
-        var initializationCalls = context.SyntaxProvider
-            .CreateSyntaxProvider(
-                static (node, _) => IsInitializeBetterPageActivationInvocation(node),
-                static (syntaxContext, cancellationToken) =>
-                    GetInitializationTargetTypeName(syntaxContext, cancellationToken))
-            .Where(static typeName => typeName is not null)
-            .Select(static (typeName, _) => typeName!);
+        var apps = CreateApps(context);
+        var views = CreateViews(context);
+        var viewModels = CreateViewModels(context);
+        var initializationCalls = CreateInitializationCalls(context);
 
         var assemblyName = context.CompilationProvider
             .Select(static (compilation, _) => compilation.AssemblyName ?? "Assembly");
 
-        var
-            referencedModules = context.CompilationProvider.Select(static (compilation, cancellationToken) =>
+        var referencedModules = context.CompilationProvider.Select(
+            static (compilation, cancellationToken) =>
                 ReferencedViewModuleReader.Read(compilation, cancellationToken));
 
         var xamlContract =
             context.CompilationProvider.Select(static (compilation, cancellationToken) =>
                 XamlContractModel.Create(compilation, cancellationToken));
 
-        var
-            collectedViews = views.Collect();
-        var
-            collectedViewModels = viewModels.Collect();
+        var collectedViews = views.Collect();
+        var collectedViewModels = viewModels.Collect();
         var
             localRegistrations = collectedViews.Combine(collectedViewModels);
         var hasLocalModule = localRegistrations.Select(static (registrations, _) =>
@@ -92,16 +66,62 @@ public sealed class PageActivationGenerator : IIncrementalGenerator
             });
     }
 
+    private static IncrementalValuesProvider<AppModel> CreateApps(
+        IncrementalGeneratorInitializationContext context)
+    {
+        return context.SyntaxProvider.ForAttributeWithMetadataName(
+            MetadataNames.PageActivationAttribute,
+            static (node, _) => node is ClassDeclarationSyntax,
+            static (syntaxContext, cancellationToken) =>
+                AppModel.Create(syntaxContext, cancellationToken));
+    }
+
+    private static IncrementalValuesProvider<ViewInfo> CreateViews(
+        IncrementalGeneratorInitializationContext context)
+    {
+        return context.SyntaxProvider.ForAttributeWithMetadataName(
+            MetadataNames.ViewAttribute,
+            static (node, _) => node is ClassDeclarationSyntax,
+            static (syntaxContext, cancellationToken) =>
+                ViewInfo.Create(syntaxContext, cancellationToken));
+    }
+
+    private static IncrementalValuesProvider<ViewModelInfo> CreateViewModels(
+        IncrementalGeneratorInitializationContext context)
+    {
+        return context.SyntaxProvider.ForAttributeWithMetadataName(
+            MetadataNames.ViewModelAttribute,
+            static (node, _) => node is TypeDeclarationSyntax,
+            static (syntaxContext, cancellationToken) =>
+                ViewModelInfo.Create(syntaxContext, cancellationToken));
+    }
+
+    private static IncrementalValuesProvider<string> CreateInitializationCalls(
+        IncrementalGeneratorInitializationContext context)
+    {
+        return context.SyntaxProvider
+            .CreateSyntaxProvider(
+                static (node, _) => IsInitializeBetterPageActivationInvocation(node),
+                static (syntaxContext, cancellationToken) =>
+                    GetInitializationTargetTypeName(syntaxContext, cancellationToken))
+            .Where(static typeName => typeName is not null)
+            .Select(static (typeName, _) => typeName!);
+    }
+
     private static bool IsInitializeBetterPageActivationInvocation(SyntaxNode node)
     {
         if (node is not InvocationExpressionSyntax invocation) return false;
 
         return invocation.Expression switch
         {
-            IdentifierNameSyntax identifier =>
-                identifier.Identifier.ValueText == "InitializeBetterPageActivation",
-            MemberAccessExpressionSyntax member =>
-                member.Name.Identifier.ValueText == "InitializeBetterPageActivation",
+            IdentifierNameSyntax identifier => string.Equals(
+                identifier.Identifier.ValueText,
+                "InitializeBetterPageActivation",
+                StringComparison.Ordinal),
+            MemberAccessExpressionSyntax member => string.Equals(
+                member.Name.Identifier.ValueText,
+                "InitializeBetterPageActivation",
+                StringComparison.Ordinal),
             _ => false
         };
     }
