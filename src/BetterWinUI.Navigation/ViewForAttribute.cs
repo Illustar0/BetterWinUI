@@ -1,5 +1,7 @@
 namespace BetterWinUI.Navigation;
 
+#pragma warning disable S2326 // Generic arguments are consumed by the source generator.
+
 /// <summary>
 /// Generates a parameterless navigation mapping from a ViewModel to the annotated View.
 /// </summary>
@@ -27,3 +29,5 @@ public sealed class ViewForAttribute<TViewModel, TParameter>(string route) : Att
     /// <summary>Gets the exact, case-sensitive route identifier.</summary>
     public string Route { get; } = route;
 }
+
+#pragma warning restore S2326
