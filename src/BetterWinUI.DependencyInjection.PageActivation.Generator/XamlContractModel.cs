@@ -200,13 +200,13 @@ internal readonly struct InterfaceMemberModel : IEquatable<InterfaceMemberModel>
     public string Kind { get; }
 
     /// <summary>Gets a value indicating whether this member is a method.</summary>
-    public bool IsMethod => Kind == "Method";
+    public bool IsMethod => string.Equals(Kind, "Method", StringComparison.Ordinal);
 
     /// <summary>Gets a value indicating whether this member is a property or indexer.</summary>
-    public bool IsProperty => Kind == "Property";
+    public bool IsProperty => string.Equals(Kind, "Property", StringComparison.Ordinal);
 
     /// <summary>Gets a value indicating whether this member is an event.</summary>
-    public bool IsEvent => Kind == "Event";
+    public bool IsEvent => string.Equals(Kind, "Event", StringComparison.Ordinal);
 
     /// <summary>Gets the declaration member name and any type or index parameters.</summary>
     public string DeclarationName { get; }
@@ -256,8 +256,8 @@ internal readonly struct InterfaceMemberModel : IEquatable<InterfaceMemberModel>
     /// <summary>Gets a value indicating whether this is the required runtime type property.</summary>
     public bool IsUnderlyingType =>
         IsProperty &&
-        DeclarationName == "UnderlyingType" &&
-        TypeName == "global::System.Type" &&
+        string.Equals(DeclarationName, "UnderlyingType", StringComparison.Ordinal) &&
+        string.Equals(TypeName, "global::System.Type", StringComparison.Ordinal) &&
         CanRead;
 
     /// <summary>Creates a value-only model from a referenced interface member.</summary>
@@ -373,24 +373,29 @@ internal readonly struct InterfaceMemberModel : IEquatable<InterfaceMemberModel>
 
     private static XamlMemberSpecialKind GetSpecialKind(IMethodSymbol method)
     {
-        if (method.Name == "ActivateInstance" &&
+        if (string.Equals(method.Name, "ActivateInstance", StringComparison.Ordinal) &&
             method.Parameters.IsDefaultOrEmpty &&
             method.RefKind == RefKind.None &&
             method.ReturnType.SpecialType == SpecialType.System_Object)
             return XamlMemberSpecialKind.ActivateInstance;
 
-        if (method.Name != "GetXamlType" ||
+        if (!string.Equals(method.Name, "GetXamlType", StringComparison.Ordinal) ||
             method.Parameters.Length != 1 ||
             method.Parameters[0].RefKind != RefKind.None ||
             method.RefKind != RefKind.None ||
-            method.ReturnType.ToGlobalDisplayString() !=
-            "global::Microsoft.UI.Xaml.Markup.IXamlType")
+            !string.Equals(
+                method.ReturnType.ToGlobalDisplayString(),
+                "global::Microsoft.UI.Xaml.Markup.IXamlType",
+                StringComparison.Ordinal))
             return XamlMemberSpecialKind.None;
 
         var parameterType = method.Parameters[0].Type;
         if (parameterType.SpecialType == SpecialType.System_String) return XamlMemberSpecialKind.GetXamlTypeByName;
 
-        return parameterType.ToGlobalDisplayString() == "global::System.Type"
+        return string.Equals(
+            parameterType.ToGlobalDisplayString(),
+            "global::System.Type",
+            StringComparison.Ordinal)
             ? XamlMemberSpecialKind.GetXamlTypeByType
             : XamlMemberSpecialKind.None;
     }
