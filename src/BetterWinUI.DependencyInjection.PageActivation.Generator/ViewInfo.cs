@@ -69,11 +69,7 @@ internal readonly struct ViewInfo : IEquatable<ViewInfo>
                 location,
                 symbol.ToDisplayString()));
 
-        var lifetime = attribute.ConstructorArguments.Length == 0
-            ? ServiceLifetimeValues.Transient
-            : attribute.ConstructorArguments[0].Value is int value
-                ? value
-                : int.MinValue;
+        var lifetime = GetLifetime(attribute);
 
         if (lifetime == ServiceLifetimeValues.Scoped)
             // TODO: Support Scoped only after a navigation scope owns the lifetime and
@@ -105,6 +101,16 @@ internal readonly struct ViewInfo : IEquatable<ViewInfo>
             location,
             validType && validLifetime,
             diagnostics.ToImmutable());
+    }
+
+    private static int GetLifetime(AttributeData attribute)
+    {
+        if (attribute.ConstructorArguments.Length == 0)
+            return ServiceLifetimeValues.Transient;
+
+        return attribute.ConstructorArguments[0].Value is int value
+            ? value
+            : int.MinValue;
     }
 
     /// <inheritdoc />
