@@ -19,8 +19,6 @@
         <ProjectReference
                 Include="..\BetterWinUI.Navigation.Generator\BetterWinUI.Navigation.Generator.csproj"
                 OutputItemType="Analyzer"/>
-        <PackageReference Include="Microsoft.CodeAnalysis.CSharp"/>
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection"/>
         <PackageReference Include="Microsoft.NET.Test.Sdk"/>
         <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all"/>
         <PackageReference Include="xunit.v3"/>

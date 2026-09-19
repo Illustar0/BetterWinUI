@@ -6,7 +6,7 @@ These instructions apply to the entire repository.
 
 ## Repository map
 
-- `src/BetterWinUI.Navigation`: platform-neutral navigation registry.
+- `src/BetterWinUI.Navigation`: WinUI Page maps and generated mapping modules.
 - `src/BetterWinUI.Navigation.Frame`: WinUI `Frame` adapter.
 - `src/BetterWinUI.DependencyInjection.PageActivation`: page activation API.
 - `*.Generator`: source generators embedded in their corresponding packages.

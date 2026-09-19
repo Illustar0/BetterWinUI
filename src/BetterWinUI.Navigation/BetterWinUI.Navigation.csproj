@@ -1,18 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk" TreatAsLocalProperty="TargetFramework">
     <PropertyGroup>
-        <TargetFramework>net8.0</TargetFramework>
+        <TargetFramework>net8.0-windows10.0.26100.0</TargetFramework>
+        <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+        <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+        <UseWinUI>true</UseWinUI>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <IsPackable>true</IsPackable>
         <PackageId>BetterWinUI.Navigation</PackageId>
         <Title>BetterWinUI Navigation</Title>
-        <Description>Strongly typed navigation destination registration for BetterWinUI.</Description>
+        <Description>ViewModel-first WinUI Page maps and generated mapping modules.</Description>
         <PackageTags>BetterWinUI;WinUI;WinUI3;WindowsAppSDK;navigation;source-generator;NativeAOT</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Microsoft.WindowsAppSDK.WinUI"/>
         <ProjectReference
                 Include="..\BetterWinUI.Navigation.Generator\BetterWinUI.Navigation.Generator.csproj"
                 ReferenceOutputAssembly="false"

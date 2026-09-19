@@ -2,126 +2,109 @@
 
 **Make WinUI better.**
 
-BetterWinUI is a collection of focused components and NuGet packages for building cleaner, safer, and more maintainable
-WinUI 3 applications.
+Focused packages for ViewModel-first WinUI navigation and dependency-injected Page activation.
 
-## Packages
-
-| Package                                          | Purpose                                                    | Target             |
-|--------------------------------------------------|------------------------------------------------------------|--------------------|
-| `BetterWinUI.Navigation`                         | Strongly typed ViewModel and route registration            | .NET 8             |
-| `BetterWinUI.Navigation.Frame`                   | WinUI `Frame` adapter for registered destinations          | .NET 8 for Windows |
-| `BetterWinUI.DependencyInjection.PageActivation` | NativeAOT-compatible constructor injection for WinUI pages | .NET 8             |
+| Package | Purpose | Target |
+|---|---|---|
+| `BetterWinUI.Navigation` | Mutable/frozen Page maps and generated mapping modules | .NET 8 for Windows |
+| `BetterWinUI.Navigation.Frame` | Frame navigation, requests, transitions, and native history | .NET 8 for Windows |
+| `BetterWinUI.DependencyInjection.PageActivation` | NativeAOT-compatible Page constructor injection | .NET 8 |
 
 ## Navigation
 
-Register the navigation host and destinations explicitly:
-
 ```csharp
-public sealed class MainNavigationHost : FrameNavigationHost;
+using BetterWinUI.Navigation;
+using BetterWinUI.Navigation.Frame;
 
-services.AddSingleton<MainNavigationHost>();
-services.AddBetterFrameNavigation(builder =>
-{
-    builder.Register<HomeViewModel, HomePage>("home");
-});
+var pages = new PageMap();
+pages.Add<HomeViewModel, HomePage>();
+pages.Add<DetailViewModel, DetailPage>();
+
+var navigator = new FrameNavigator(pages);
+IDisposable attachment = navigator.Attach(contentFrame);
+
+navigator.Navigate<HomeViewModel>();
+navigator.Navigate<DetailViewModel>(new DetailArgs(42), transition);
 ```
 
-Or, you can use attributes to generate the destination registrations:
+Keep the attachment for the host's lifetime and dispose it on the UI thread.
+Use `pages.Freeze()` when a navigator should use an immutable snapshot instead.
+ViewModel targets, per-call parameters, and Page selection are separate concerns;
+routes are application-owned and are never required by a Page mapping.
+
+Optional attributes generate explicit registration groups:
 
 ```csharp
-[ViewFor<HomeViewModel>("home")]
-public sealed partial class HomePage;
+[PageFor<HomeViewModel>]
+public sealed partial class HomePage : Page;
 
-services.AddSingleton<MainNavigationHost>();
-services.AddBetterFrameNavigation();
+[PageModule]
+public sealed partial class DesktopPages;
+
+[PageFor<DetailViewModel>(Module = typeof(DesktopPages))]
+public sealed partial class DetailPage : Page;
+
+pages.AddGeneratedPages();               // This assembly's ungrouped mappings
+pages.AddGeneratedPages<DesktopPages>(); // One explicitly selected module
 ```
 
-Build the provider, resolve (or inject) the host-bound navigation service, attach the application `Frame`, then navigate
-by ViewModel:
+Each group loads atomically. Public named modules can be selected across assembly
+references; default groups are not automatically aggregated across assemblies.
+
+See [Page maps and modules](src/BetterWinUI.Navigation/README.md) and
+[Frame navigation](src/BetterWinUI.Navigation.Frame/README.md) for mutation,
+requests, strict parameter overloads, custom resolvers, and history semantics.
+
+## Page activation and DI
+
+Navigation selects a Page type; Page activation independently constructs the Page.
+Register the map/navigator and activation services using ordinary Microsoft DI:
 
 ```csharp
-ServiceProvider provider = services.BuildServiceProvider();
+var pages = new PageMap();
+pages.Add<HomeViewModel, HomePage>();
 
-MainNavigationHost navigationHost =
-    provider.GetRequiredService<MainNavigationHost>();
-FrameNavigationService<MainNavigationHost> navigation =
-    provider.GetRequiredService<FrameNavigationService<MainNavigationHost>>();
-
-IDisposable attachment = navigationHost.Attach(contentFrame);
-navigation.NavigateToViewModel<HomeViewModel>();
-```
-
-Typed parameters, exact routes, transitions, and history navigation are documented in
-[BetterWinUI.Navigation](src/BetterWinUI.Navigation/README.md) and
-[BetterWinUI.Navigation.Frame](src/BetterWinUI.Navigation.Frame/README.md).
-
-## Page activation
-
-Register navigation, pages, and ViewModels in the same Microsoft dependency injection container:
-
-```csharp
-var services = new ServiceCollection();
-services.AddSingleton<MainNavigationHost>();
-services.AddBetterFrameNavigation(builder =>
-{
-    builder.Register<HomeViewModel, HomePage>("home");
-});
-services.AddTransient<MainViewModel>();
-services.AddTransient<MainPage>();
+services.AddSingleton<FrameNavigator>(_ => new FrameNavigator(pages));
+services.AddTransient<HomeViewModel>();
+services.AddTransient<HomePage>();
 services.AddBetterPageActivation();
 
 ServiceProvider provider = services.BuildServiceProvider();
 this.InitializeBetterPageActivation(provider);
+
+FrameNavigator navigator = provider.GetRequiredService<FrameNavigator>();
+IDisposable attachment = navigator.Attach(contentFrame);
 ```
 
-The activated Page can receive services registered by other BetterWinUI packages:
+On a partial WinUI App marked `[PageActivation]`, the generator supplies the
+activation methods. A Page constructor can receive its ViewModel and navigator:
 
 ```csharp
-public sealed partial class MainPage : Page
+public sealed partial class HomePage : Page
 {
-    public MainPage(
-        MainViewModel viewModel,
-        FrameNavigationService<MainNavigationHost> navigation)
+    public HomePage(HomeViewModel viewModel, FrameNavigator navigator)
     {
         InitializeComponent();
         ViewModel = viewModel;
-        Navigation = navigation;
+        Navigator = navigator;
     }
 
-    public MainViewModel ViewModel { get; }
-
-    public FrameNavigationService<MainNavigationHost> Navigation { get; }
+    public HomeViewModel ViewModel { get; }
+    public FrameNavigator Navigator { get; }
 }
 ```
 
-Or, keep the navigation setup and use attributes to generate the Page and ViewModel registrations:
+`[View]` and `[ViewModel]` optionally generate DI registrations; `[PageFor]` only
+generates Page mappings. Neither navigation nor activation assigns DataContext.
+See [Page activation](src/BetterWinUI.DependencyInjection.PageActivation/README.md).
 
-```csharp
-[View]
-public sealed partial class MainPage : Page
-{
-    public MainPage(
-        MainViewModel viewModel,
-        FrameNavigationService<MainNavigationHost> navigation)
-    {
-        InitializeComponent();
-        ViewModel = viewModel;
-        Navigation = navigation;
-    }
+## Breaking migration
 
-    public MainViewModel ViewModel { get; }
-
-    public FrameNavigationService<MainNavigationHost> Navigation { get; }
-}
-
-[ViewModel(ServiceLifetime.Transient)]
-public sealed class MainViewModel;
-```
-
-Explicit registrations take precedence over generated registrations. Unregistered-page behavior and other details are
-documented in
-[BetterWinUI.DependencyInjection.PageActivation](src/BetterWinUI.DependencyInjection.PageActivation/README.md).
+The old destination/registry, `ViewFor` route attributes, generic host service,
+and generated `AddBetterFrameNavigation` API have been removed. Replace them
+with `PageMap`, `PageFor`/`PageModule`, and `FrameNavigator` composition.
+Move route resolution into application code. Pass parameters per navigation call;
+there is no globally registered `ParameterType`.
 
 ## Build
 

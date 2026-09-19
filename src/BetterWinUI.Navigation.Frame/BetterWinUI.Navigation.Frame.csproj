@@ -16,8 +16,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\BetterWinUI.Navigation\BetterWinUI.Navigation.csproj"/>
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions"/>
+        <ProjectReference Include="..\BetterWinUI.Navigation\BetterWinUI.Navigation.csproj" PrivateAssets="none"/>
         <PackageReference Include="Microsoft.WindowsAppSDK.WinUI"/>
     </ItemGroup>
 

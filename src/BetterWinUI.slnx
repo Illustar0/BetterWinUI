@@ -11,4 +11,5 @@
     <Project
             Path="BetterWinUI.DependencyInjection.PageActivation.Tests/BetterWinUI.DependencyInjection.PageActivation.Tests.csproj"/>
     <Project Path="BetterWinUI.Navigation.Tests/BetterWinUI.Navigation.Tests.csproj"/>
+    <Project Path="BetterWinUI.Navigation.Generator.Tests/BetterWinUI.Navigation.Generator.Tests.csproj"/>
 </Solution>

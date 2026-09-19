@@ -8,8 +8,8 @@ namespace BetterWinUI.Navigation;
 /// <typeparam name="TViewModel">The destination view model type.</typeparam>
 /// <remarks>
 /// Implementing this interface is optional. It enables constrained navigation
-/// overloads supplied by an adapter. Registrations remain the authoritative
-/// runtime mapping.
+/// overloads supplied by an adapter. It does not restrict the adapter's open
+/// parameter overload or establish a global parameter registration.
 /// </remarks>
 public interface INavigationParameter<TViewModel>
     where TViewModel : class;

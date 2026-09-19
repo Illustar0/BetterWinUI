@@ -1,4 +1,4 @@
-using System.Text;
+using System.Globalization;
 
 namespace BetterWinUI.Navigation.Generator;
 
@@ -7,14 +7,11 @@ namespace BetterWinUI.Navigation.Generator;
 /// </summary>
 internal static class NameUtilities
 {
+    /// <summary>Combines a readable identifier with a deterministic FNV-1a suffix.</summary>
     internal static string CreateSuffix(string value)
     {
-        var identifier = new StringBuilder(value.Length + 9);
-        foreach (var character in value) identifier.Append(char.IsLetterOrDigit(character) ? character : '_');
-
-        var hash = 2166136261;
-        foreach (var character in value) hash = (hash ^ character) * 16777619;
-
-        return identifier.Append('_').Append(hash.ToString("X8")).ToString();
+        var identifier = new string(value.Select(static character => char.IsLetterOrDigit(character) ? character : '_').ToArray());
+        var hash = value.Aggregate(2166136261u, static (current, character) => unchecked((current ^ character) * 16777619u));
+        return identifier + "_" + hash.ToString("X8", CultureInfo.InvariantCulture);
     }
 }
