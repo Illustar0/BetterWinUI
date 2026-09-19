@@ -7,9 +7,9 @@
     <Project
             Path="BetterWinUI.DependencyInjection.PageActivation.Generator/BetterWinUI.DependencyInjection.PageActivation.Generator.csproj"/>
     <Project
-            Path="BetterWinUI.DependencyInjection.PageActivation.IntegrationTests/BetterWinUI.DependencyInjection.PageActivation.IntegrationTests.csproj"/>
+            Path="BetterWinUI.IntegrationTests/BetterWinUI.IntegrationTests.csproj"/>
     <Project
-            Path="BetterWinUI.DependencyInjection.PageActivation.Tests/BetterWinUI.DependencyInjection.PageActivation.Tests.csproj"/>
+            Path="BetterWinUI.DependencyInjection.PageActivation.Generator.Tests/BetterWinUI.DependencyInjection.PageActivation.Generator.Tests.csproj"/>
     <Project Path="BetterWinUI.Navigation.Tests/BetterWinUI.Navigation.Tests.csproj"/>
     <Project Path="BetterWinUI.Navigation.Generator.Tests/BetterWinUI.Navigation.Generator.Tests.csproj"/>
 </Solution>
