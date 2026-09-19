@@ -17,9 +17,8 @@ These instructions apply to the entire repository.
 Run from the repository root on Windows with the .NET 10 SDK:
 
 ```powershell
-dotnet restore src/BetterWinUI.slnx
-dotnet build src/BetterWinUI.slnx --configuration Release --no-restore
-dotnet test src/BetterWinUI.slnx --configuration Release --no-build
+./build.ps1 --target Test
+./build.ps1 --target Pack
 ```
 
 ## Conventions

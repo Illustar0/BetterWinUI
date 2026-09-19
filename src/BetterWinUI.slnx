@@ -1,4 +1,9 @@
 <Solution>
+    <Folder Name="/Build/">
+        <Project Path="../build/_build.csproj">
+            <Build Project="false" />
+        </Project>
+    </Folder>
     <Project Path="BetterWinUI.Navigation.Frame/BetterWinUI.Navigation.Frame.csproj"/>
     <Project Path="BetterWinUI.Navigation.Generator/BetterWinUI.Navigation.Generator.csproj"/>
     <Project Path="BetterWinUI.Navigation/BetterWinUI.Navigation.csproj"/>

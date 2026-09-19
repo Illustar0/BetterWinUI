@@ -108,22 +108,22 @@ there is no globally registered `ParameterType`.
 
 ## Build
 
-Building the complete solution requires Windows and the .NET 10 SDK:
+The solution requires Windows and the .NET 10 SDK:
 
 ```powershell
-dotnet restore src/BetterWinUI.slnx
-dotnet build src/BetterWinUI.slnx --configuration Release --no-restore
-dotnet test src/BetterWinUI.slnx --configuration Release --no-build
+./build.ps1 --target Test
+./build.ps1 --target Pack
 ```
 
-Releases use Conventional Commits, git-cliff semantic versioning, and NuGet.org Trusted Publishing through GitHub
-Actions.
+NUKE restores and builds the solution, runs ordinary and real WinUI tests, and packs
+the three libraries. See [Testing](docs/testing.md) for individual targets.
+
+Releases use Conventional Commits, git-cliff semantic versioning, and NuGet.org Trusted Publishing.
 
 ## Acknowledgements
 
-Special thanks to
-[gabor-budai/WinUI.DependencyInjection](https://github.com/gabor-budai/WinUI.DependencyInjection)
-for the prior art and inspiration behind dependency-injected WinUI page activation.
+Thanks to [gabor-budai/WinUI.DependencyInjection](https://github.com/gabor-budai/WinUI.DependencyInjection)
+for the prior art behind dependency-injected WinUI Page activation.
 
 ## License
 

@@ -43,32 +43,9 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - name: Restore
-        run: dotnet restore src/BetterWinUI.slnx
-
-      - name: Build
-        run: dotnet build src/BetterWinUI.slnx --configuration Release --no-restore
-
-      - name: Test
-        run: dotnet test src/BetterWinUI.slnx --configuration Release --no-build
-
-      - name: Pack
+      - name: Build, test and pack
         shell: pwsh
-        run: |
-          $projects = @(
-            'src/BetterWinUI.Navigation/BetterWinUI.Navigation.csproj',
-            'src/BetterWinUI.Navigation.Frame/BetterWinUI.Navigation.Frame.csproj',
-            'src/BetterWinUI.DependencyInjection.PageActivation/BetterWinUI.DependencyInjection.PageActivation.csproj'
-          )
-
-          foreach ($project in $projects) {
-            dotnet pack $project `
-              --configuration Release `
-              --no-build `
-              --output artifacts `
-              -p:Version=${{ steps.version.outputs.version }}
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
+        run: ./build.ps1 --target Pack --package-version ${{ steps.version.outputs.version }}
 
       - name: Upload packages
         uses: actions/upload-artifact@v7
