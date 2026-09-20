@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <IsAotCompatible>false</IsAotCompatible>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Basic.Reference.Assemblies.Net80" PrivateAssets="all"/>
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" VersionOverride="4.12.0"/>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection"/>
+        <PackageReference Include="Microsoft.NET.Test.Sdk"/>
+        <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all"/>
+        <PackageReference Include="xunit.v3"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\BetterWinUI.PageActivation.DependencyInjection\BetterWinUI.PageActivation.DependencyInjection.csproj"/>
+        <ProjectReference Include="..\BetterWinUI.PageActivation.DependencyInjection.Generator\BetterWinUI.PageActivation.DependencyInjection.Generator.csproj"/>
+        <ProjectReference Include="../BetterWinUI.PageActivation.Generator/BetterWinUI.PageActivation.Generator.csproj"/>
+    </ItemGroup>
+</Project>

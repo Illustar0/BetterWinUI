@@ -45,7 +45,7 @@ sealed class Build : NukeBuild
             [
                 "BetterWinUI.Navigation.Tests",
                 "BetterWinUI.Navigation.Generator.Tests",
-                "BetterWinUI.DependencyInjection.PageActivation.Generator.Tests"
+                "BetterWinUI.PageActivation.DependencyInjection.Generator.Tests"
             ];
             foreach (var project in projects)
             {
@@ -63,22 +63,21 @@ sealed class Build : NukeBuild
             }
         });
 
-    /// <summary>Runs strict and fallback activation in separate real WinUI application processes.</summary>
+    /// <summary>Runs independent Page factory and DI navigation tests in real WinUI application processes.</summary>
     Target IntegrationTests => target => target
         .DependsOn(Compile)
         .Executes(() =>
         {
-            foreach (var policy in new[] { "strict", "fallback" })
+            foreach (var project in new[] { "BetterWinUI.PageActivation.IntegrationTests", "BetterWinUI.IntegrationTests" })
             {
-                var results = ResultsDirectory / $"Integration-{policy}";
+                var results = ResultsDirectory / project;
                 Directory.CreateDirectory(results);
                 var report = results / "results.trx";
                 File.Delete(report);
                 DotNetRun(settings => settings
-                    .SetProjectFile(ProjectFile("BetterWinUI.IntegrationTests"))
+                    .SetProjectFile(ProjectFile(project))
                     .SetConfiguration(Configuration)
                     .EnableNoBuild()
-                    .SetProcessEnvironmentVariable("BETTERWINUI_TEST_ACTIVATION", policy)
                     .SetApplicationArguments(
                         "--minimum-expected-tests", "1", "--zero-tests-policy", "strict", "--timeout", "2m",
                         "--report-trx", "--report-trx-filename", "results.trx", "--results-directory", results));
@@ -89,7 +88,7 @@ sealed class Build : NukeBuild
     /// <summary>Requires both independent test layers to pass.</summary>
     Target Test => target => target.DependsOn(UnitTests, IntegrationTests);
 
-    /// <summary>Creates the three distributable packages only after all tests pass.</summary>
+    /// <summary>Creates the distributable packages only after all tests pass.</summary>
     Target Pack => target => target
         .DependsOn(Test)
         .Executes(() =>
@@ -98,7 +97,8 @@ sealed class Build : NukeBuild
             [
                 "BetterWinUI.Navigation",
                 "BetterWinUI.Navigation.Frame",
-                "BetterWinUI.DependencyInjection.PageActivation"
+                "BetterWinUI.PageActivation",
+                "BetterWinUI.PageActivation.DependencyInjection"
             ];
             foreach (var project in projects)
                 DotNetPack(settings => settings

@@ -4,17 +4,16 @@
             <Build Project="false" />
         </Project>
     </Folder>
-    <Project Path="BetterWinUI.Navigation.Frame/BetterWinUI.Navigation.Frame.csproj"/>
-    <Project Path="BetterWinUI.Navigation.Generator/BetterWinUI.Navigation.Generator.csproj"/>
-    <Project Path="BetterWinUI.Navigation/BetterWinUI.Navigation.csproj"/>
-    <Project
-            Path="BetterWinUI.DependencyInjection.PageActivation/BetterWinUI.DependencyInjection.PageActivation.csproj"/>
-    <Project
-            Path="BetterWinUI.DependencyInjection.PageActivation.Generator/BetterWinUI.DependencyInjection.PageActivation.Generator.csproj"/>
-    <Project
-            Path="BetterWinUI.IntegrationTests/BetterWinUI.IntegrationTests.csproj"/>
-    <Project
-            Path="BetterWinUI.DependencyInjection.PageActivation.Generator.Tests/BetterWinUI.DependencyInjection.PageActivation.Generator.Tests.csproj"/>
-    <Project Path="BetterWinUI.Navigation.Tests/BetterWinUI.Navigation.Tests.csproj"/>
-    <Project Path="BetterWinUI.Navigation.Generator.Tests/BetterWinUI.Navigation.Generator.Tests.csproj"/>
+    <Project Path="BetterWinUI.Navigation.Frame/BetterWinUI.Navigation.Frame.csproj" />
+    <Project Path="BetterWinUI.Navigation.Generator/BetterWinUI.Navigation.Generator.csproj" />
+    <Project Path="BetterWinUI.Navigation/BetterWinUI.Navigation.csproj" />
+    <Project Path="BetterWinUI.PageActivation.DependencyInjection/BetterWinUI.PageActivation.DependencyInjection.csproj" />
+    <Project Path="BetterWinUI.PageActivation.DependencyInjection.Generator/BetterWinUI.PageActivation.DependencyInjection.Generator.csproj" />
+    <Project Path="BetterWinUI.IntegrationTests/BetterWinUI.IntegrationTests.csproj" />
+    <Project Path="BetterWinUI.PageActivation.DependencyInjection.Generator.Tests/BetterWinUI.PageActivation.DependencyInjection.Generator.Tests.csproj" />
+    <Project Path="BetterWinUI.Navigation.Tests/BetterWinUI.Navigation.Tests.csproj" />
+    <Project Path="BetterWinUI.Navigation.Generator.Tests/BetterWinUI.Navigation.Generator.Tests.csproj" />
+    <Project Path="BetterWinUI.PageActivation/BetterWinUI.PageActivation.csproj" />
+    <Project Path="BetterWinUI.PageActivation.Generator/BetterWinUI.PageActivation.Generator.csproj" />
+    <Project Path="BetterWinUI.PageActivation.IntegrationTests/BetterWinUI.PageActivation.IntegrationTests.csproj" />
 </Solution>

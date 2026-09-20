@@ -1,4 +1,4 @@
-using BetterWinUI.DependencyInjection.PageActivation;
+using BetterWinUI.PageActivation.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace BetterWinUI.IntegrationTests;

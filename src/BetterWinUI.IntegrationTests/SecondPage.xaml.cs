@@ -1,4 +1,4 @@
-using BetterWinUI.DependencyInjection.PageActivation;
+using BetterWinUI.PageActivation.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml.Controls;
 

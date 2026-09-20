@@ -1,4 +1,5 @@
-using BetterWinUI.DependencyInjection.PageActivation;
+using BetterWinUI.PageActivation.DependencyInjection;
+using BetterWinUI.PageActivation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -7,17 +8,9 @@ using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 namespace BetterWinUI.IntegrationTests;
 
 /// <summary>Hosts tests on the real XAML thread and installs generated Page activation.</summary>
-[PageActivation]
+[GeneratePageActivationHook]
 public sealed partial class App : Application
 {
-    /// <summary>Gets the activation policy selected for this isolated test process.</summary>
-    public bool AllowFallback { get; } = Environment.GetEnvironmentVariable("BETTERWINUI_TEST_ACTIVATION") switch
-    {
-        null or "" or "strict" => false,
-        "fallback" => true,
-        var policy => throw new InvalidOperationException($"Unknown test activation policy: {policy}")
-    };
-
     /// <summary>Gets the provider owned by the test application.</summary>
     public ServiceProvider Services { get; }
 
@@ -29,11 +22,9 @@ public sealed partial class App : Application
         services.AddKeyedSingleton("clock", new TestClock());
         services.AddSingleton(new OverrideViewModel());
         services.AddTransient<ManualPage>();
-        services.AddBetterPageActivation(options => options.UnregisteredPageBehavior = AllowFallback
-            ? UnregisteredPageBehavior.FallbackToXamlActivator
-            : UnregisteredPageBehavior.Throw);
+        services.AddGeneratedPageServices();
         Services = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
-        this.InitializeBetterPageActivation(Services);
+        this.UsePageActivation(Services);
     }
 
     /// <summary>Runs MSTest inside the existing Application and shuts down its owned services.</summary>
