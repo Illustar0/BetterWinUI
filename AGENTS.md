@@ -8,7 +8,8 @@ These instructions apply to the entire repository.
 
 - `src/BetterWinUI.Navigation`: WinUI Page maps and generated mapping modules.
 - `src/BetterWinUI.Navigation.Frame`: WinUI `Frame` adapter.
-- `src/BetterWinUI.DependencyInjection.PageActivation`: page activation API.
+- `src/BetterWinUI.PageActivation`: application Page factory hooks and XAML activation integration.
+- `src/BetterWinUI.PageActivation.DependencyInjection`: DI registrations and the container-backed factory.
 - `*.Generator`: source generators embedded in their corresponding packages.
 - `*.Tests` and `*.IntegrationTests`: unit and WinUI integration tests.
 
@@ -29,7 +30,8 @@ Run from the repository root on Windows with the .NET 10 SDK:
 - Compile published source generators against Roslyn 4.8 so they remain loadable by the .NET 8 SDK; newer Roslyn
   versions belong in test overrides.
 - Tests target .NET 8. Generator tests compile consumer fixtures; runtime WinUI behavior belongs in
-  `BetterWinUI.IntegrationTests`, which uses real XAML metadata and runs strict/fallback policies in separate processes.
+  `BetterWinUI.IntegrationTests` and `BetterWinUI.PageActivation.IntegrationTests`, which use real XAML metadata
+  to exercise DI navigation and independent Page factories in separate applications.
 - Test observable behavior, not generated text, private names, or internal data structures.
 - Manage NuGet versions centrally in `src/Directory.Packages.props`.
 - Add XML documentation to public APIs and keep source-generator diagnostics in

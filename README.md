@@ -2,13 +2,14 @@
 
 **Make WinUI better.**
 
-Focused packages for ViewModel-first WinUI navigation and dependency-injected Page activation.
+Focused packages for ViewModel-first WinUI navigation and application-owned Page activation.
 
 | Package | Purpose | Target |
 |---|---|---|
 | `BetterWinUI.Navigation` | Mutable/frozen Page maps and generated mapping modules | .NET 8 for Windows |
 | `BetterWinUI.Navigation.Frame` | Frame navigation, requests, transitions, and native history | .NET 8 for Windows |
-| `BetterWinUI.DependencyInjection.PageActivation` | NativeAOT-compatible Page constructor injection | .NET 8 |
+| `BetterWinUI.PageActivation` | Application-owned Page factory hooks and XAML integration | .NET 8 |
+| `BetterWinUI.PageActivation.DependencyInjection` | NativeAOT-compatible Page constructor injection | .NET 8 |
 
 ## Navigation
 
@@ -58,7 +59,19 @@ requests, strict parameter overloads, custom resolvers, and history semantics.
 ## Page activation and DI
 
 Navigation selects a Page type; Page activation independently constructs the Page.
-Register the map/navigator and activation services using ordinary Microsoft DI:
+On an App marked with `[GeneratePageActivationHook]` from `BetterWinUI.PageActivation`, install
+an application factory without requiring DI:
+
+```csharp
+this.UsePageActivation(pageType => pageType == typeof(HomePage)
+    ? new HomePage(homeViewModel, navigator)
+    : throw new InvalidOperationException($"No factory for {pageType}."));
+```
+
+Once installed, the factory owns activation: failures never fall back to native construction.
+See [Page activation hooks](src/BetterWinUI.PageActivation/README.md).
+Alternatively, use `BetterWinUI.PageActivation.DependencyInjection` to register the
+map/navigator and install a DI-backed factory:
 
 ```csharp
 var pages = new PageMap();
@@ -67,16 +80,16 @@ pages.Add<HomeViewModel, HomePage>();
 services.AddSingleton<FrameNavigator>(_ => new FrameNavigator(pages));
 services.AddTransient<HomeViewModel>();
 services.AddTransient<HomePage>();
-services.AddBetterPageActivation();
+services.AddGeneratedPageServices();
 
 ServiceProvider provider = services.BuildServiceProvider();
-this.InitializeBetterPageActivation(provider);
+this.UsePageActivation(provider);
 
 FrameNavigator navigator = provider.GetRequiredService<FrameNavigator>();
 IDisposable attachment = navigator.Attach(contentFrame);
 ```
 
-On a partial WinUI App marked `[PageActivation]`, the generator supplies the
+On a partial WinUI App marked `[GeneratePageActivationHook]`, the generator supplies the
 activation methods. A Page constructor can receive its ViewModel and navigator:
 
 ```csharp
@@ -96,7 +109,7 @@ public sealed partial class HomePage : Page
 
 `[View]` and `[ViewModel]` optionally generate DI registrations; `[PageFor]` only
 generates Page mappings. Neither navigation nor activation assigns DataContext.
-See [Page activation](src/BetterWinUI.DependencyInjection.PageActivation/README.md).
+See [Page activation](src/BetterWinUI.PageActivation.DependencyInjection/README.md).
 
 ## Breaking migration
 
@@ -105,6 +118,12 @@ and generated `AddBetterFrameNavigation` API have been removed. Replace them
 with `PageMap`, `PageFor`/`PageModule`, and `FrameNavigator` composition.
 Move route resolution into application code. Pass parameters per navigation call;
 there is no globally registered `ParameterType`.
+
+Page activation is now split between `BetterWinUI.PageActivation` and
+`BetterWinUI.PageActivation.DependencyInjection`. Import the base namespace for
+`[GeneratePageActivationHook]` and the DI namespace for `[View]`, `[ViewModel]`, and registration
+extensions. The former DI package name and native-fallback configuration are removed;
+register every Page explicitly or through `[View]` when using DI activation.
 
 ## Build
 
@@ -116,7 +135,7 @@ The solution requires Windows and the .NET 10 SDK:
 ```
 
 NUKE restores and builds the solution, runs ordinary and real WinUI tests, and packs
-the three libraries. See [Testing](docs/testing.md) for individual targets.
+the four libraries. See [Testing](docs/testing.md) for individual targets.
 
 Releases use Conventional Commits, git-cliff semantic versioning, and NuGet.org Trusted Publishing.
 
