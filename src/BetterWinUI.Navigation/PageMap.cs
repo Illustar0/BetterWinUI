@@ -105,7 +105,7 @@ public sealed class PageMap : IReadOnlyDictionary<Type, Type>
     }
 
     /// <summary>Checks that a resolved type is a concrete, closed Page subclass.</summary>
-    internal static void ValidatePage(Type pageType)
+    private static void ValidatePage(Type pageType)
     {
         ArgumentNullException.ThrowIfNull(pageType);
         if (pageType == typeof(Page) || !typeof(Page).IsAssignableFrom(pageType) ||
