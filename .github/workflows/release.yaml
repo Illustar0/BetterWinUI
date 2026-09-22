@@ -2,6 +2,16 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag (for example, v1.2.3 or v1.2.3-preview.1)
+        required: false
+        type: string
+      dry_run:
+        description: Build and validate without publishing
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: release
@@ -35,17 +45,25 @@ jobs:
       - name: Calculate version
         id: version
         shell: pwsh
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
         run: |
           New-Item -ItemType Directory -Path artifacts -Force | Out-Null
-          $rawVersion = (npx --yes git-cliff --config cliff.toml --bumped-version).Trim()
-          $version = $rawVersion.TrimStart('v')
+          $tag = $env:RELEASE_TAG.Trim()
 
-          if ($version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
-            throw "git-cliff returned an invalid semantic version: $rawVersion"
+          if ([string]::IsNullOrWhiteSpace($tag)) {
+            $rawVersion = (npx --yes git-cliff --config cliff.toml --bumped-version).Trim()
+            $tag = "v$($rawVersion.TrimStart('v'))"
           }
 
+          $semanticVersionPattern = '^v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?$'
+          if ($tag -notmatch $semanticVersionPattern) {
+            throw "Release tag must be a v-prefixed semantic version: $tag"
+          }
+
+          $version = $tag.Substring(1)
           "version=$version" >> $env:GITHUB_OUTPUT
-          "tag=v$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
 
       - name: Generate release notes
         run: >-
@@ -54,6 +72,18 @@ jobs:
           --unreleased
           --tag ${{ steps.version.outputs.tag }}
           --output artifacts/release-notes.md
+
+      - name: Summarize dry run
+        if: ${{ inputs.dry_run }}
+        shell: pwsh
+        run: |
+          "## Release dry run" >> $env:GITHUB_STEP_SUMMARY
+          "" >> $env:GITHUB_STEP_SUMMARY
+          "- Release tag: ${{ steps.version.outputs.tag }}" >> $env:GITHUB_STEP_SUMMARY
+          "- Package version: ${{ steps.version.outputs.version }}" >> $env:GITHUB_STEP_SUMMARY
+          "" >> $env:GITHUB_STEP_SUMMARY
+          "### Release notes" >> $env:GITHUB_STEP_SUMMARY
+          Get-Content -Raw artifacts/release-notes.md >> $env:GITHUB_STEP_SUMMARY
 
       - name: Build, test and pack
         shell: pwsh
@@ -68,6 +98,7 @@ jobs:
 
   publish:
     needs: build
+    if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     environment: nuget
     permissions:
