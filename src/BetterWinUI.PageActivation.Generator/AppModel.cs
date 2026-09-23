@@ -185,9 +185,12 @@ internal readonly struct AppModel : IEquatable<AppModel>
     private static bool IsXamlOutputReady(Compilation compilation)
     {
         return compilation.SyntaxTrees.Any(static tree =>
-            tree.FilePath.EndsWith("XamlTypeInfo.g.cs", StringComparison.OrdinalIgnoreCase) &&
+            IsXamlTypeInfoTree(tree) &&
             tree.Length > 0);
     }
+
+    private static bool IsXamlTypeInfoTree(SyntaxTree? tree) =>
+        tree?.FilePath.EndsWith("XamlTypeInfo.g.cs", StringComparison.OrdinalIgnoreCase) == true;
 
     private static string? GetNativeProviderPropertyName(
         INamedTypeSymbol symbol,
@@ -206,6 +209,7 @@ internal readonly struct AppModel : IEquatable<AppModel>
         INamedTypeSymbol? xamlProviderInterface)
     {
         if (xamlProviderInterface is null ||
+            !property.Locations.Any(static location => IsXamlTypeInfoTree(location.SourceTree)) ||
             property.IsStatic ||
             property.GetMethod is null ||
             property.SetMethod is not null ||

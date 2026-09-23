@@ -101,6 +101,33 @@ public sealed class PageActivationGeneratorTests
 
     }
 
+    /// <summary>An unrelated private provider property must not hide WinUI's generated provider.</summary>
+    [Fact]
+    public void UserProviderPropertyDoesNotHideNativeProvider()
+    {
+        var result = GeneratorTestHost.Run(
+            "AdditionalProvider",
+            (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
+            (GeneratorTestHost.ValidApplicationSource, "App.cs"),
+            ("""
+             namespace Fixture;
+             public sealed partial class App
+             {
+                 private Microsoft.UI.Xaml.Markup.IXamlMetadataProvider OtherProvider { get; } = null!;
+             }
+             """, "UserProvider.cs"),
+            (GeneratorTestHost.NativeProviderSource, "XamlTypeInfo.g.cs"));
+        result.AssertNoErrors();
+
+        using var stream = new MemoryStream(GeneratorTestHost.Emit(result.OutputCompilation));
+        var assembly = System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromStream(stream);
+        var app = Activator.CreateInstance(assembly.GetType("Fixture.App", true)!)!;
+        var providerType = assembly.GetType("Microsoft.UI.Xaml.Markup.IXamlMetadataProvider", true)!;
+        var pageType = assembly.GetType("Fixture.MainPage", true)!;
+        var metadata = providerType.GetMethod("GetXamlType", [typeof(Type)])!.Invoke(app, [pageType]);
+        Assert.NotNull(metadata);
+    }
+
     /// <summary>
     /// Verifies DI composition is available during WinUI's first markup compilation pass.
     /// </summary>
