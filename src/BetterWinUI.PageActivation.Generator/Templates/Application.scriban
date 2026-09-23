@@ -95,9 +95,7 @@ namespace BetterWinUI.PageActivation.Generated
             {{ XamlTypeInterfaceName }} xamlType =
                 nativeProvider{{ Member.InvocationName }}({{ Member.Arguments }});
             global::System.Type pageType = {{ Member.Arguments }};
-            if (xamlType is null ||
-                pageType == typeof(global::Microsoft.UI.Xaml.Controls.Page) ||
-                !typeof(global::Microsoft.UI.Xaml.Controls.Page).IsAssignableFrom(pageType))
+            if (xamlType is null || !IsPageType(pageType))
             {
                 return xamlType!;
             }
@@ -155,8 +153,7 @@ namespace BetterWinUI.PageActivation.Generated
             {{ XamlTypeInterfaceName }} xamlType)
         {
             global::System.Type type = xamlType.UnderlyingType;
-            if (type == typeof(global::Microsoft.UI.Xaml.Controls.Page) ||
-                !typeof(global::Microsoft.UI.Xaml.Controls.Page).IsAssignableFrom(type))
+            if (!IsPageType(type))
             {
                 return xamlType;
             }
@@ -168,6 +165,16 @@ namespace BetterWinUI.PageActivation.Generated
                 (XamlType: xamlType, Provider: this));
         }
 
+        /// <summary>Checks whether a XAML runtime type derives from Page.</summary>
+        /// <remarks>
+        /// CsWinRT can return a TypeInfo placeholder for AOT-trimmed WinRT metadata.
+        /// Unlike the Page types emitted by XAML, that placeholder cannot be reflected.
+        /// </remarks>
+        private static bool IsPageType(global::System.Type? type) =>
+            type is not null &&
+            type.GetType() == typeof(global::Microsoft.UI.Xaml.Controls.Page).GetType() &&
+            type != typeof(global::Microsoft.UI.Xaml.Controls.Page) &&
+            typeof(global::Microsoft.UI.Xaml.Controls.Page).IsAssignableFrom(type);
     }
 
     [global::WinRT.WinRTRuntimeClassName("Microsoft.UI.Xaml.Markup.IXamlType")]
