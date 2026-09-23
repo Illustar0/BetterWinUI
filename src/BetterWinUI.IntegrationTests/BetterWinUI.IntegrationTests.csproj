@@ -1,4 +1,4 @@
-<Project Sdk="MSTest.Sdk/4.4.0">
+<Project Sdk="MSTest.Sdk/4.4.1">
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <TargetFramework>net8.0-windows10.0.26100.0</TargetFramework>
