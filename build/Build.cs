@@ -57,8 +57,8 @@ sealed class Build : NukeBuild
                     .SetProjectFile(ProjectFile(project))
                     .SetConfiguration(Configuration)
                     .EnableNoBuild()
-                    .SetLoggers("trx;LogFileName=results.trx")
-                    .SetResultsDirectory(results));
+                    .SetResultsDirectory(results)
+                    .SetProcessAdditionalArguments("--", "--report-xunit-trx", "--report-xunit-trx-filename", "results.trx"));
                 VerifyTestsExecuted(report);
             }
         });
