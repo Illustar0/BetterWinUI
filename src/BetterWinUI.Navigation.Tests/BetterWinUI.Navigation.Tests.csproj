@@ -18,7 +18,7 @@
         <ProjectReference Include="..\BetterWinUI.Navigation.Frame\BetterWinUI.Navigation.Frame.csproj"/>
         <ProjectReference
                 Include="..\BetterWinUI.Navigation.Generator\BetterWinUI.Navigation.Generator.csproj"
-                OutputItemType="Analyzer"/>
+                OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
         <PackageReference Include="Microsoft.NET.Test.Sdk"/>
         <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all"/>
         <PackageReference Include="xunit.v3"/>
