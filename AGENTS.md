@@ -25,16 +25,11 @@ Run from the repository root on Windows with the .NET 10 SDK:
 ## Conventions
 
 - Keep packages focused; navigation registration, navigation execution, and page activation are separate concerns.
-- Preserve .NET 8 compatibility for published packages and `netstandard2.0`
-  compatibility for source generators.
-- Compile published source generators against Roslyn 4.8 so they remain loadable by the .NET 8 SDK; newer Roslyn
-  versions belong in test overrides.
-- Tests target .NET 8. Generator tests compile consumer fixtures; runtime WinUI behavior belongs in
-  `BetterWinUI.IntegrationTests` and `BetterWinUI.PageActivation.IntegrationTests`, which use real XAML metadata
-  to exercise DI navigation and independent Page factories in separate applications.
+- Preserve .NET 8 compatibility for published packages and `netstandard2.0` compatibility for source generators.
+- Compile published source generators against Roslyn 4.8 so they remain loadable by the .NET 8 SDK; newer Roslyn versions belong in test overrides.
+- Tests target .NET 8. Generator tests compile consumer fixtures; runtime WinUI behavior belongs in `BetterWinUI.IntegrationTests` and `BetterWinUI.PageActivation.IntegrationTests`, which use real XAML metadata to exercise DI navigation and independent Page factories in separate applications.
 - Test observable behavior, not generated text, private names, or internal data structures.
 - Manage NuGet versions centrally in `src/Directory.Packages.props`.
-- Add XML documentation to public APIs and keep source-generator diagnostics in
-  `AnalyzerReleases.Unshipped.md` using the exact Roslyn table format.
+- Add XML documentation to public APIs and keep source-generator diagnostics in `AnalyzerReleases.Unshipped.md` using the exact Roslyn table format.
 - Do not edit `bin`, `obj`, or generated source files.
 - Prefer small changes and add or update tests for observable behavior.
