@@ -30,7 +30,7 @@ jobs:
         shell: pwsh
         run: |
           $rawVersion = (npx --yes git-cliff --config cliff.toml --bumped-version).Trim()
-          $version = $rawVersion.TrimStart('v')
+          $version = $rawVersion.TrimStart('v').Split('-')[0]
 
           if ($version -notmatch '^\d+\.\d+\.\d+$') {
             throw "git-cliff returned an invalid semantic version: $rawVersion"
