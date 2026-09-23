@@ -111,20 +111,6 @@ public sealed partial class HomePage : Page
 generates Page mappings. Neither navigation nor activation assigns DataContext.
 See [Page activation](src/BetterWinUI.PageActivation.DependencyInjection/README.md).
 
-## Breaking migration
-
-The old destination/registry, `ViewFor` route attributes, generic host service,
-and generated `AddBetterFrameNavigation` API have been removed. Replace them
-with `PageMap`, `PageFor`/`PageModule`, and `FrameNavigator` composition.
-Move route resolution into application code. Pass parameters per navigation call;
-there is no globally registered `ParameterType`.
-
-Page activation is now split between `BetterWinUI.PageActivation` and
-`BetterWinUI.PageActivation.DependencyInjection`. Import the base namespace for
-`[GeneratePageActivationHook]` and the DI namespace for `[View]`, `[ViewModel]`, and registration
-extensions. The former DI package name and native-fallback configuration are removed;
-register every Page explicitly or through `[View]` when using DI activation.
-
 ## Build
 
 The solution requires Windows and the .NET 10 SDK:
