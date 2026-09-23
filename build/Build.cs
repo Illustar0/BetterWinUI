@@ -85,8 +85,38 @@ sealed class Build : NukeBuild
             }
         });
 
-    /// <summary>Requires both independent test layers to pass.</summary>
-    Target Test => target => target.DependsOn(UnitTests, IntegrationTests);
+    /// <summary>Publishes and launches a Native AOT WinUI app with early Page factory registration.</summary>
+    Target PageActivationAotSmoke => target => target
+        .DependsOn(Compile)
+        .Executes(() =>
+        {
+            var output = ResultsDirectory / "BetterWinUI.PageActivation.AotSmoke" / "publish";
+            DotNetPublish(settings => settings
+                .SetProject(ProjectFile("BetterWinUI.PageActivation.AotSmoke"))
+                .SetConfiguration(Configuration)
+                .SetOutput(output)
+                .EnableNoRestore());
+
+            var executable = output / "BetterWinUI.PageActivation.AotSmoke.exe";
+            using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = executable,
+                WorkingDirectory = output,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            }) ?? throw new InvalidOperationException($"Could not launch {executable}");
+            if (!process.WaitForExit(30_000))
+            {
+                process.Kill(entireProcessTree: true);
+                throw new TimeoutException($"AOT smoke test timed out: {executable}");
+            }
+            if (process.ExitCode != 0)
+                throw new InvalidOperationException(
+                    $"AOT smoke test exited with 0x{unchecked((uint)process.ExitCode):X8}: {executable}");
+        });
+
+    /// <summary>Requires unit, WinUI integration, and Native AOT startup tests to pass.</summary>
+    Target Test => target => target.DependsOn(UnitTests, IntegrationTests, PageActivationAotSmoke);
 
     /// <summary>Creates the distributable packages only after all tests pass.</summary>
     Target Pack => target => target

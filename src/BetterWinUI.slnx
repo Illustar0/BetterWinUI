@@ -11,6 +11,7 @@
     <Project Path="BetterWinUI.PageActivation.DependencyInjection.Generator/BetterWinUI.PageActivation.DependencyInjection.Generator.csproj" />
     <Project Path="BetterWinUI.IntegrationTests/BetterWinUI.IntegrationTests.csproj" />
     <Project Path="BetterWinUI.PageActivation.DependencyInjection.Generator.Tests/BetterWinUI.PageActivation.DependencyInjection.Generator.Tests.csproj" />
+    <Project Path="BetterWinUI.PageActivation.AotSmoke/BetterWinUI.PageActivation.AotSmoke.csproj" />
     <Project Path="BetterWinUI.Navigation.Tests/BetterWinUI.Navigation.Tests.csproj" />
     <Project Path="BetterWinUI.Navigation.Generator.Tests/BetterWinUI.Navigation.Generator.Tests.csproj" />
     <Project Path="BetterWinUI.PageActivation/BetterWinUI.PageActivation.csproj" />
