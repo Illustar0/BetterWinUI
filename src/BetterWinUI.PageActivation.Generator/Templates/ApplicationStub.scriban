@@ -2,7 +2,7 @@
 #nullable enable
 namespace {{ Namespace }}
 {
-    partial class {{ AppName }}
+    partial class @{{ AppName }}
     {
         /// <summary>Installs a Page factory once native XAML metadata is available.</summary>
         /// <param name="activate">The application Page factory.</param>

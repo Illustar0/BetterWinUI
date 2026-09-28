@@ -12,6 +12,27 @@ namespace BetterWinUI.PageActivation.DependencyInjection.Generator.Tests;
 /// </summary>
 public sealed class PageActivationGeneratorTests
 {
+    /// <summary>Escaped application names compile in both XAML generation passes.</summary>
+    [Fact]
+    public void EscapedApplicationNameCompiles()
+    {
+        var appSource = GeneratorTestHost.ValidApplicationSource.Replace("class App", "class @event", StringComparison.Ordinal);
+        var providerSource = GeneratorTestHost.NativeProviderSource.Replace("class App", "class @event", StringComparison.Ordinal);
+
+        var markupPass = GeneratorTestHost.Run(
+            "EscapedApplicationMarkupPass",
+            (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
+            (appSource, "App.cs"));
+        markupPass.AssertNoErrors();
+
+        var fullPass = GeneratorTestHost.Run(
+            "EscapedApplicationFullPass",
+            (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
+            (appSource, "App.cs"),
+            (providerSource, "XamlTypeInfo.g.cs"));
+        fullPass.AssertNoErrors();
+    }
+
     /// <summary>Both factory and provider overloads compile with an application-defined factory.</summary>
     [Fact]
     public void ExplicitFactoryCanReplaceDependencyInjectionPolicy()

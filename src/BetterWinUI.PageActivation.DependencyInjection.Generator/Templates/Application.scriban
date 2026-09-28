@@ -22,7 +22,7 @@ namespace BetterWinUI.PageActivation.DependencyInjection
 
 namespace {{ Namespace }}
 {
-    partial class {{ AppName }}
+    partial class @{{ AppName }}
     {
         /// <summary>Installs a Page activation hook backed by the supplied service provider.</summary>
         /// <param name="services">The provider that owns Page creation and service lifetimes.</param>
