@@ -28,22 +28,25 @@ public sealed class NavigationGenerator : IIncrementalGenerator
     {
         var pages = context.SyntaxProvider.ForAttributeWithMetadataName(Prefix + "PageForAttribute`1",
             static (node, _) => node is TypeDeclarationSyntax,
-            static (input, _) => (INamedTypeSymbol)input.TargetSymbol).Collect();
+            static (input, token) => PageInfo.Create((INamedTypeSymbol)input.TargetSymbol, token)).Collect();
         var modules = context.SyntaxProvider.ForAttributeWithMetadataName(Prefix + "PageModuleAttribute",
             static (node, _) => node is TypeDeclarationSyntax,
-            static (input, _) => (INamedTypeSymbol)input.TargetSymbol).Collect();
-        context.RegisterSourceOutput(pages.Combine(modules).Combine(context.CompilationProvider),
+            static (input, _) => ModuleInfo.Create((INamedTypeSymbol)input.TargetSymbol)).Collect();
+        var compilationInfo = context.CompilationProvider.Select(static (compilation, _) =>
+            new CompilationInfo(compilation.AssemblyName ?? "Assembly",
+                compilation.GetTypeByMetadataName(Prefix + "PageMap") is not null));
+        context.RegisterSourceOutput(pages.Combine(modules).Combine(compilationInfo),
             static (output, input) => Generate(output, input.Right, input.Left.Left, input.Left.Right));
     }
 
     /// <summary>Validates and emits the groups declared in this compilation.</summary>
-    private static void Generate(SourceProductionContext output, Compilation compilation,
-        ImmutableArray<INamedTypeSymbol> pages, ImmutableArray<INamedTypeSymbol> modules)
+    private static void Generate(SourceProductionContext output, CompilationInfo compilation,
+        ImmutableArray<PageInfo> pages, ImmutableArray<ModuleInfo> modules)
     {
-        if (compilation.GetTypeByMetadataName(Prefix + "PageMap") is null) return;
+        if (!compilation.HasPageMap) return;
         var validModules = GetValidModules(output, modules);
         var groups = GroupMappings(output, pages, validModules);
-        var suffix = NameUtilities.CreateSuffix(compilation.AssemblyName ?? "Assembly");
+        var suffix = NameUtilities.CreateSuffix(compilation.AssemblyName);
         foreach (var group in groups.OrderBy(static pair => pair.Key, StringComparer.Ordinal))
         {
             var registrations = GetNonConflictingMappings(output, group.Value);
@@ -53,36 +56,27 @@ public sealed class NavigationGenerator : IIncrementalGenerator
     }
 
     /// <summary>Reports unsupported module declarations and indexes valid local modules.</summary>
-    private static Dictionary<string, INamedTypeSymbol> GetValidModules(
-        SourceProductionContext output, ImmutableArray<INamedTypeSymbol> modules)
+    private static Dictionary<string, ModuleInfo> GetValidModules(
+        SourceProductionContext output, ImmutableArray<ModuleInfo> modules)
     {
-        var declarations = modules.Distinct<INamedTypeSymbol>(SymbolEqualityComparer.Default)
-            .Select(static module => (Module: module, IsValid: IsValidModule(module))).ToArray();
-        foreach (var module in declarations.Where(static declaration => !declaration.IsValid)
-                     .Select(static declaration => declaration.Module))
-            output.ReportDiagnostic(Diagnostic.Create(InvalidModule, module.Locations[0], Name(module)));
-        return declarations.Where(static declaration => declaration.IsValid)
-            .ToDictionary(static declaration => Name(declaration.Module), static declaration => declaration.Module, StringComparer.Ordinal);
+        var declarations = modules.GroupBy(static module => module.FullName, StringComparer.Ordinal)
+            .Select(static group => group.First()).ToArray();
+        foreach (var module in declarations.Where(static module => !module.IsValid))
+            output.ReportDiagnostic(Diagnostic.Create(InvalidModule, module.Location.ToLocation(), module.FullName));
+        return declarations.Where(static module => module.IsValid)
+            .ToDictionary(static module => module.FullName, static module => module, StringComparer.Ordinal);
     }
 
     /// <summary>Collects Page mappings into the default group and explicitly named modules.</summary>
     private static Dictionary<string, List<Mapping>> GroupMappings(SourceProductionContext output,
-        ImmutableArray<INamedTypeSymbol> pages, Dictionary<string, INamedTypeSymbol> validModules)
+        ImmutableArray<PageInfo> pages, Dictionary<string, ModuleInfo> validModules)
     {
         var groups = validModules.Keys.Append(string.Empty)
             .ToDictionary(static name => name, static _ => new List<Mapping>(), StringComparer.Ordinal);
-        var declarations = pages.Distinct<INamedTypeSymbol>(SymbolEqualityComparer.Default)
-            .SelectMany(static page => page.GetAttributes().Where(IsPageForAttribute),
-                static (page, attribute) => (Page: page, Attribute: attribute));
-        foreach (var declaration in declarations)
-            AddMapping(output, declaration.Page, declaration.Attribute, validModules, groups);
+        foreach (var mapping in pages.Distinct().SelectMany(static page => page.Mappings))
+            AddMapping(output, mapping, validModules, groups);
         return groups;
     }
-
-    /// <summary>Recognizes the Page mapping attribute without matching unrelated generic attributes.</summary>
-    private static bool IsPageForAttribute(AttributeData attribute) =>
-        attribute.AttributeClass is { MetadataName: "PageForAttribute`1" } attributeClass &&
-        string.Equals(attributeClass.ContainingNamespace.ToDisplayString(), NavigationNamespace, StringComparison.Ordinal);
 
     /// <summary>Reports duplicate targets within one group and orders the remaining mappings.</summary>
     private static Mapping[] GetNonConflictingMappings(SourceProductionContext output, List<Mapping> mappings)
@@ -90,47 +84,37 @@ public sealed class NavigationGenerator : IIncrementalGenerator
         var conflicts = mappings.GroupBy(static mapping => mapping.ViewModel, StringComparer.Ordinal)
             .Where(static group => group.Count() > 1).ToArray();
         foreach (var mapping in conflicts.SelectMany(static group => group))
-            output.ReportDiagnostic(Diagnostic.Create(Conflict, mapping.Location, mapping.ViewModel));
+            output.ReportDiagnostic(Diagnostic.Create(Conflict, mapping.Location.ToLocation(), mapping.ViewModel));
         var conflictingTargets = new HashSet<string>(conflicts.Select(static group => group.Key), StringComparer.Ordinal);
         return mappings.Where(mapping => !conflictingTargets.Contains(mapping.ViewModel))
             .OrderBy(static mapping => mapping.ViewModel, StringComparer.Ordinal).ToArray();
     }
 
     /// <summary>Adds one valid attribute to its local mapping group.</summary>
-    private static void AddMapping(SourceProductionContext output, INamedTypeSymbol page, AttributeData attribute,
-        Dictionary<string, INamedTypeSymbol> modules, Dictionary<string, List<Mapping>> groups)
+    private static void AddMapping(SourceProductionContext output, Mapping mapping,
+        Dictionary<string, ModuleInfo> modules, Dictionary<string, List<Mapping>> groups)
     {
-        var location = attribute.ApplicationSyntaxReference?.GetSyntax(output.CancellationToken).GetLocation() ?? page.Locations[0];
-        var viewModel = attribute.AttributeClass!.TypeArguments[0];
-        if (page.IsAbstract || !Accessible(page) || !DerivesFromPage(page) || !Accessible(viewModel))
+        var location = mapping.Location.ToLocation();
+        if (!mapping.IsValidPage)
         {
-            output.ReportDiagnostic(Diagnostic.Create(InvalidPage, location, Name(page)));
+            output.ReportDiagnostic(Diagnostic.Create(InvalidPage, location, mapping.Page));
             return;
         }
-        var moduleValue = attribute.NamedArguments.FirstOrDefault(static pair => string.Equals(pair.Key, "Module", StringComparison.Ordinal)).Value.Value;
-        if (moduleValue is ITypeSymbol invalidModule && invalidModule is not INamedTypeSymbol)
+        if (!mapping.IsValidModuleType)
         {
-            output.ReportDiagnostic(Diagnostic.Create(InvalidModule, location, Name(invalidModule)));
+            output.ReportDiagnostic(Diagnostic.Create(InvalidModule, location, mapping.ModuleName));
             return;
         }
-
-        var module = moduleValue as INamedTypeSymbol;
-        var group = module is null ? string.Empty : Name(module);
-        if (module is not null && (!modules.TryGetValue(group, out var localModule) ||
-                                  !SymbolEqualityComparer.Default.Equals(module, localModule)))
+        var group = mapping.ModuleName;
+        if (group.Length > 0 && (!modules.TryGetValue(group, out var localModule) ||
+                                 !string.Equals(mapping.ModuleAssemblyIdentity, localModule.AssemblyIdentity,
+                                     StringComparison.Ordinal)))
         {
             output.ReportDiagnostic(Diagnostic.Create(InvalidModule, location, group));
             return;
         }
-        groups[group].Add(new Mapping(Name(viewModel), Name(page), location));
+        groups[group].Add(mapping);
     }
-
-    /// <summary>Checks declarations that receive a generated module implementation.</summary>
-    private static bool IsValidModule(INamedTypeSymbol module) =>
-        module.TypeKind == TypeKind.Class && !module.IsRecord && !module.IsAbstract && !module.IsStatic &&
-        module.Arity == 0 && module.ContainingType is null && Accessible(module) && module.GetMembers("Register").Length == 0 &&
-        module.DeclaringSyntaxReferences.All(static reference => reference.GetSyntax() is ClassDeclarationSyntax declaration &&
-            declaration.Modifiers.Any(SyntaxKind.PartialKeyword));
 
     /// <summary>Checks that namespace-level generated code can name a closed type.</summary>
     private static bool Accessible(ITypeSymbol type)
@@ -144,24 +128,16 @@ public sealed class NavigationGenerator : IIncrementalGenerator
         return true;
     }
 
-    /// <summary>Checks WinUI Page inheritance without loading the assembly.</summary>
-    private static bool DerivesFromPage(INamedTypeSymbol type)
-    {
-        for (var current = type.BaseType; current is not null; current = current.BaseType)
-            if (string.Equals(current.ToDisplayString(), "Microsoft.UI.Xaml.Controls.Page", StringComparison.Ordinal)) return true;
-        return false;
-    }
-
     /// <summary>Formats a source-safe type name.</summary>
     private static string Name(ITypeSymbol type) => type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
     /// <summary>Emits the public module contract in the declaring assembly.</summary>
-    private static string EmitModule(INamedTypeSymbol module, Mapping[] mappings)
+    private static string EmitModule(ModuleInfo module, Mapping[] mappings)
     {
         return TemplateRenderer.Render("PageModule.scriban", new
         {
-            Namespace = module.ContainingNamespace.IsGlobalNamespace ? string.Empty : module.ContainingNamespace.ToDisplayString(),
-            ModuleName = "@" + module.Name,
+            module.Namespace,
+            ModuleName = "@" + module.SimpleName,
             Mappings = mappings.Select(static mapping => new { mapping.ViewModel, mapping.Page }).ToArray()
         });
     }
@@ -176,11 +152,111 @@ public sealed class NavigationGenerator : IIncrementalGenerator
         });
     }
 
-    /// <summary>Stores one validated mapping for emission.</summary>
-    private sealed class Mapping(string viewModel, string page, Location location)
+    /// <summary>Stores only stable compilation facts needed by emission.</summary>
+    private readonly record struct CompilationInfo(string AssemblyName, bool HasPageMap);
+
+    /// <summary>Stores a module declaration without retaining a Roslyn symbol.</summary>
+    private readonly record struct ModuleInfo(
+        string FullName,
+        string Namespace,
+        string SimpleName,
+        string AssemblyIdentity,
+        bool IsValid,
+        SourceLocation Location)
     {
-        internal string ViewModel { get; } = viewModel;
-        internal string Page { get; } = page;
-        internal Location Location { get; } = location;
+        internal static ModuleInfo Create(INamedTypeSymbol module) => new(
+            NavigationGenerator.Name(module),
+            module.ContainingNamespace.IsGlobalNamespace ? string.Empty : module.ContainingNamespace.ToDisplayString(),
+            module.Name,
+            module.ContainingAssembly.Identity.ToString(),
+            IsValidModule(module),
+            SourceLocation.Create(module.Locations[0]));
+
+        /// <summary>Checks declarations that receive a generated module implementation.</summary>
+        private static bool IsValidModule(INamedTypeSymbol module) =>
+            module.TypeKind == TypeKind.Class && !module.IsRecord && !module.IsAbstract && !module.IsStatic &&
+            module.Arity == 0 && module.ContainingType is null && Accessible(module) && module.GetMembers("Register").Length == 0 &&
+            module.DeclaringSyntaxReferences.All(static reference => reference.GetSyntax() is ClassDeclarationSyntax declaration &&
+                declaration.Modifiers.Any(SyntaxKind.PartialKeyword));
+    }
+
+    /// <summary>Stores one mapping candidate and its diagnostics as values.</summary>
+    private readonly record struct Mapping(
+        string ViewModel,
+        string Page,
+        string ModuleName,
+        string ModuleAssemblyIdentity,
+        bool IsValidPage,
+        bool IsValidModuleType,
+        SourceLocation Location);
+
+    /// <summary>Collects all mapping attributes on a Page into an equatable model.</summary>
+    private sealed class PageInfo(ImmutableArray<Mapping> mappings) : IEquatable<PageInfo>
+    {
+        internal ImmutableArray<Mapping> Mappings { get; } = mappings;
+
+        internal static PageInfo Create(INamedTypeSymbol page, CancellationToken token)
+        {
+            var pageName = Name(page);
+            var pageIsValid = !page.IsAbstract && Accessible(page) && DerivesFromPage(page);
+            var mappings = ImmutableArray.CreateBuilder<Mapping>();
+            foreach (var attribute in page.GetAttributes().Where(IsPageForAttribute))
+            {
+                var location = attribute.ApplicationSyntaxReference?.GetSyntax(token).GetLocation() ?? page.Locations[0];
+                var viewModel = attribute.AttributeClass!.TypeArguments[0];
+                var moduleValue = attribute.NamedArguments.FirstOrDefault(static pair =>
+                    string.Equals(pair.Key, "Module", StringComparison.Ordinal)).Value.Value;
+                var module = moduleValue as INamedTypeSymbol;
+                mappings.Add(new Mapping(
+                    Name(viewModel),
+                    pageName,
+                    moduleValue is ITypeSymbol moduleType ? Name(moduleType) : string.Empty,
+                    module?.ContainingAssembly.Identity.ToString() ?? string.Empty,
+                    pageIsValid && Accessible(viewModel),
+                    moduleValue is null or INamedTypeSymbol,
+                    SourceLocation.Create(location)));
+            }
+
+            return new PageInfo(mappings.ToImmutable());
+        }
+
+        /// <summary>Recognizes the Page mapping attribute without matching unrelated generic attributes.</summary>
+        private static bool IsPageForAttribute(AttributeData attribute) =>
+            attribute.AttributeClass is { MetadataName: "PageForAttribute`1" } attributeClass &&
+            string.Equals(attributeClass.ContainingNamespace.ToDisplayString(), NavigationNamespace, StringComparison.Ordinal);
+
+        /// <summary>Checks WinUI Page inheritance without loading the assembly.</summary>
+        private static bool DerivesFromPage(INamedTypeSymbol type)
+        {
+            for (var current = type.BaseType; current is not null; current = current.BaseType)
+                if (string.Equals(current.ToDisplayString(), "Microsoft.UI.Xaml.Controls.Page", StringComparison.Ordinal)) return true;
+            return false;
+        }
+
+        public bool Equals(PageInfo? other) => other is not null && Mappings.SequenceEqual(other.Mappings);
+
+        public override bool Equals(object? obj) => obj is PageInfo other && Equals(other);
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                var hashCode = 0;
+                foreach (var mapping in Mappings) hashCode = (hashCode * 397) ^ mapping.GetHashCode();
+                return hashCode;
+            }
+        }
+    }
+
+    /// <summary>Recreates diagnostic locations without keeping syntax trees in the pipeline.</summary>
+    private readonly record struct SourceLocation(string Path, TextSpan Span, LinePositionSpan LineSpan)
+    {
+        internal static SourceLocation Create(Location location)
+        {
+            var lineSpan = location.GetLineSpan();
+            return new SourceLocation(lineSpan.Path ?? string.Empty, location.SourceSpan, lineSpan.Span);
+        }
+
+        internal Location ToLocation() => Location.Create(Path, Span, LineSpan);
     }
 }

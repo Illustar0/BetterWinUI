@@ -13,6 +13,40 @@ namespace BetterWinUI.Navigation.Generator.Tests;
 /// <summary>Compiles generated modules and verifies selection and diagnostics across assemblies.</summary>
 public sealed class NavigationGeneratorTests
 {
+    /// <summary>Unrelated source edits reuse an unchanged Page module output.</summary>
+    [Fact]
+    public void UnrelatedEditReusesPageModuleOutput()
+    {
+        var compilation = CreateCompilation("IncrementalPages", """
+            using BetterWinUI.Navigation;
+            using Microsoft.UI.Xaml.Controls;
+            namespace Fixture;
+            public sealed class Target;
+            [PageFor<Target>] public sealed class MainPage : Page;
+            """);
+        var parseOptions = (CSharpParseOptions)compilation.SyntaxTrees.First().Options;
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(
+            [new NavigationGenerator().AsSourceGenerator()],
+            parseOptions: parseOptions,
+            driverOptions: new GeneratorDriverOptions(default, trackIncrementalGeneratorSteps: true));
+
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out _, TestContext.Current.CancellationToken);
+        var edited = compilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(
+            "namespace Fixture; internal sealed class Unrelated;",
+            parseOptions,
+            cancellationToken: TestContext.Current.CancellationToken));
+        driver = driver.RunGeneratorsAndUpdateCompilation(edited, out var output, out _, TestContext.Current.CancellationToken);
+
+        AssertNoErrors(((CSharpCompilation)output, driver.GetRunResult()));
+        var outputs = driver.GetRunResult().Results[0].TrackedOutputSteps.Values
+            .SelectMany(static steps => steps)
+            .SelectMany(static step => step.Outputs)
+            .ToArray();
+        Assert.NotEmpty(outputs);
+        Assert.All(outputs,
+            static result => Assert.Equal(IncrementalStepRunReason.Cached, result.Reason));
+    }
+
     /// <summary>Verifies referenced defaults remain excluded while public named modules can be selected.</summary>
     [Fact]
     public void ReferencedModulesRequireExplicitSelection()
@@ -155,16 +189,23 @@ public sealed class NavigationGeneratorTests
     private static (CSharpCompilation Compilation, GeneratorDriverRunResult Run) Generate(
         string name, string source, params MetadataReference[] extraReferences)
     {
+        var compilation = CreateCompilation(name, source, extraReferences);
+        var parseOptions = (CSharpParseOptions)compilation.SyntaxTrees.First().Options;
+        GeneratorDriver driver = CSharpGeneratorDriver.Create([new NavigationGenerator().AsSourceGenerator()], parseOptions: parseOptions);
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var output, out _);
+        return ((CSharpCompilation)output, driver.GetRunResult());
+    }
+
+    /// <summary>Creates an independent consumer compilation for generator tests.</summary>
+    private static CSharpCompilation CreateCompilation(string name, string source, params MetadataReference[] extraReferences)
+    {
         var parseOptions = new CSharpParseOptions(LanguageVersion.CSharp12);
         var paths = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
             .Append(typeof(PageMap).Assembly.Location).Append(typeof(Page).Assembly.Location)
             .Append(typeof(FrameNavigator).Assembly.Location).Distinct(StringComparer.OrdinalIgnoreCase);
         var references = paths.Select(static path => MetadataReference.CreateFromFile(path)).Cast<MetadataReference>().Concat(extraReferences);
-        var compilation = CSharpCompilation.Create(name, [CSharpSyntaxTree.ParseText(source, parseOptions)], references,
+        return CSharpCompilation.Create(name, [CSharpSyntaxTree.ParseText(source, parseOptions)], references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
-        GeneratorDriver driver = CSharpGeneratorDriver.Create([new NavigationGenerator().AsSourceGenerator()], parseOptions: parseOptions);
-        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var output, out _);
-        return ((CSharpCompilation)output, driver.GetRunResult());
     }
 
     /// <summary>Asserts generated and handwritten sources both compile.</summary>
