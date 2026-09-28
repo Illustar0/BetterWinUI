@@ -107,7 +107,14 @@ public sealed class NavigationGenerator : IIncrementalGenerator
             output.ReportDiagnostic(Diagnostic.Create(InvalidPage, location, Name(page)));
             return;
         }
-        var module = attribute.NamedArguments.FirstOrDefault(static pair => string.Equals(pair.Key, "Module", StringComparison.Ordinal)).Value.Value as INamedTypeSymbol;
+        var moduleValue = attribute.NamedArguments.FirstOrDefault(static pair => string.Equals(pair.Key, "Module", StringComparison.Ordinal)).Value.Value;
+        if (moduleValue is ITypeSymbol invalidModule && invalidModule is not INamedTypeSymbol)
+        {
+            output.ReportDiagnostic(Diagnostic.Create(InvalidModule, location, Name(invalidModule)));
+            return;
+        }
+
+        var module = moduleValue as INamedTypeSymbol;
         var group = module is null ? string.Empty : Name(module);
         if (module is not null && (!modules.TryGetValue(group, out var localModule) ||
                                   !SymbolEqualityComparer.Default.Equals(module, localModule)))

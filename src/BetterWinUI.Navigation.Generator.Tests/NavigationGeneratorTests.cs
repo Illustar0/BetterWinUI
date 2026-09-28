@@ -104,6 +104,7 @@ public sealed class NavigationGeneratorTests
     [InlineData("[PageModule] public sealed class MissingPartial;", "BWNAV002")]
     [InlineData("[PageModule] public static partial class StaticModule;", "BWNAV002")]
     [InlineData("public sealed class Unmarked; [PageFor<Target>(Module = typeof(Unmarked))] public sealed class A : Page;", "BWNAV002")]
+    [InlineData("[PageFor<Target>(Module = typeof(int[]))] public sealed class A : Page;", "BWNAV002")]
     public void InvalidDeclarationsAreDiagnosed(string declaration, string diagnosticId)
     {
         var result = Generate("InvalidDeclaration", "using BetterWinUI.Navigation; using Microsoft.UI.Xaml.Controls; namespace Fixture; public sealed class Target; " + declaration);
