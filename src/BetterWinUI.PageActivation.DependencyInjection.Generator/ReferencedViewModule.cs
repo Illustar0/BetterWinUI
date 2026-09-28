@@ -58,6 +58,32 @@ internal readonly struct ReferencedViewModule : IEquatable<ReferencedViewModule>
     }
 }
 
+/// <summary>Compares referenced module snapshots by value across compilation updates.</summary>
+internal sealed class ReferencedViewModuleSequenceComparer : IEqualityComparer<ImmutableArray<ReferencedViewModule>>
+{
+    /// <summary>Gets the comparer shared by the incremental pipeline.</summary>
+    public static ReferencedViewModuleSequenceComparer Instance { get; } = new();
+
+    /// <inheritdoc />
+    public bool Equals(ImmutableArray<ReferencedViewModule> left, ImmutableArray<ReferencedViewModule> right) =>
+        left.IsDefaultOrEmpty ? right.IsDefaultOrEmpty :
+        !right.IsDefaultOrEmpty && left.SequenceEqual(right);
+
+    /// <inheritdoc />
+    public int GetHashCode(ImmutableArray<ReferencedViewModule> modules)
+    {
+        if (modules.IsDefaultOrEmpty) return 0;
+
+        unchecked
+        {
+            var hashCode = 0;
+            foreach (var module in modules)
+                hashCode = (hashCode * HashCodeValues.Multiplier) ^ module.GetHashCode();
+            return hashCode;
+        }
+    }
+}
+
 /// <summary>
 /// Extracts value-equatable generated registration modules from compilation references.
 /// </summary>

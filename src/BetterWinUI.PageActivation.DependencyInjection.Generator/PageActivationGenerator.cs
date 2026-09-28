@@ -21,7 +21,8 @@ public sealed class PageActivationGenerator : IIncrementalGenerator
 
         var referencedModules = context.CompilationProvider.Select(
             static (compilation, cancellationToken) =>
-                ReferencedViewModuleReader.Read(compilation, cancellationToken));
+                ReferencedViewModuleReader.Read(compilation, cancellationToken))
+            .WithComparer(ReferencedViewModuleSequenceComparer.Instance);
 
         var collectedViews = views.Collect();
         var collectedViewModels = viewModels.Collect();

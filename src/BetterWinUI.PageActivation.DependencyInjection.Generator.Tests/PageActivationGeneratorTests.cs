@@ -2,6 +2,7 @@ using BetterWinUI.PageActivation.DependencyInjection;
 using BetterWinUI.PageActivation;
 using BetterWinUI.PageActivation.DependencyInjection.Generator;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -12,6 +13,39 @@ namespace BetterWinUI.PageActivation.DependencyInjection.Generator.Tests;
 /// </summary>
 public sealed class PageActivationGeneratorTests
 {
+    /// <summary>An unrelated edit reuses application registration output from unchanged referenced modules.</summary>
+    [Fact]
+    public void UnrelatedEditReusesReferencedModuleOutput()
+    {
+        var winUiReference = CreateWinUiReference();
+        var viewsReference = CreateFeatureViewsReference(winUiReference);
+        var compilation = GeneratorTestHost.CreateCompilation(
+            "IncrementalApp",
+            [(GeneratorTestHost.ValidApplicationSource, "App.cs")],
+            [winUiReference, viewsReference]);
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(
+            [new PageActivationGenerator().AsSourceGenerator(),
+                new BetterWinUI.PageActivation.Generator.PageActivationGenerator().AsSourceGenerator()],
+            parseOptions: (CSharpParseOptions)compilation.SyntaxTrees.First().Options,
+            driverOptions: new GeneratorDriverOptions(default, trackIncrementalGeneratorSteps: true));
+
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out _, TestContext.Current.CancellationToken);
+        var edited = compilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(
+            "namespace Fixture; internal sealed class Unrelated;",
+            (CSharpParseOptions)compilation.SyntaxTrees.First().Options,
+            cancellationToken: TestContext.Current.CancellationToken));
+        driver = driver.RunGeneratorsAndUpdateCompilation(edited, out var output, out _, TestContext.Current.CancellationToken);
+
+        new GenerationResult((CSharpCompilation)output, driver.GetRunResult()).AssertNoErrors();
+        var outputs = driver.GetRunResult().Results[0].TrackedOutputSteps.Values
+            .SelectMany(static steps => steps)
+            .SelectMany(static step => step.Outputs)
+            .ToArray();
+        Assert.NotEmpty(outputs);
+        Assert.All(outputs,
+            static output => Assert.Equal(IncrementalStepRunReason.Cached, output.Reason));
+    }
+
     /// <summary>Escaped application names compile in both XAML generation passes.</summary>
     [Fact]
     public void EscapedApplicationNameCompiles()
@@ -438,7 +472,7 @@ public sealed class PageActivationGeneratorTests
     {
         var image = GeneratorTestHost.Emit(
             GeneratorTestHost.CreateCompilation(
-                "WinUI.Abstractions",
+                "WinUI.Abstractions_" + Guid.NewGuid().ToString("N"),
                 [(GeneratorTestHost.WinUiStubs, "WinUI.cs")]));
         using var stream = new MemoryStream(image);
         _ = System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromStream(stream);
@@ -453,7 +487,7 @@ public sealed class PageActivationGeneratorTests
     {
         var views = GeneratorTestHost.Run(
             GeneratorTestHost.CreateCompilation(
-                "Feature.Views",
+                "Feature.Views_" + Guid.NewGuid().ToString("N"),
                 [
                     (
                         """
