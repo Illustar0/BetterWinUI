@@ -28,7 +28,7 @@ public sealed class NavigationGenerator : IIncrementalGenerator
     {
         var pages = context.SyntaxProvider.ForAttributeWithMetadataName(Prefix + "PageForAttribute`1",
             static (node, _) => node is TypeDeclarationSyntax,
-            static (input, token) => PageInfo.Create((INamedTypeSymbol)input.TargetSymbol, token)).Collect();
+            static (input, token) => PageInfo.Create(input, token)).Collect();
         var modules = context.SyntaxProvider.ForAttributeWithMetadataName(Prefix + "PageModuleAttribute",
             static (node, _) => node is TypeDeclarationSyntax,
             static (input, _) => ModuleInfo.Create((INamedTypeSymbol)input.TargetSymbol)).Collect();
@@ -195,12 +195,17 @@ public sealed class NavigationGenerator : IIncrementalGenerator
     {
         internal ImmutableArray<Mapping> Mappings { get; } = mappings;
 
-        internal static PageInfo Create(INamedTypeSymbol page, CancellationToken token)
+        internal static PageInfo Create(GeneratorAttributeSyntaxContext context, CancellationToken token)
         {
+            var page = (INamedTypeSymbol)context.TargetSymbol;
+            var compilation = context.SemanticModel.Compilation;
+            var pageForAttribute = compilation.GetTypeByMetadataName(Prefix + "PageForAttribute`1");
             var pageName = Name(page);
-            var pageIsValid = !page.IsAbstract && Accessible(page) && DerivesFromPage(page);
+            var pageIsValid = !page.IsAbstract && Accessible(page) &&
+                              DerivesFrom(page, compilation.GetTypeByMetadataName("Microsoft.UI.Xaml.Controls.Page"));
             var mappings = ImmutableArray.CreateBuilder<Mapping>();
-            foreach (var attribute in page.GetAttributes().Where(IsPageForAttribute))
+            foreach (var attribute in page.GetAttributes().Where(attribute =>
+                         SymbolEqualityComparer.Default.Equals(attribute.AttributeClass?.OriginalDefinition, pageForAttribute)))
             {
                 var location = attribute.ApplicationSyntaxReference?.GetSyntax(token).GetLocation() ?? page.Locations[0];
                 var viewModel = attribute.AttributeClass!.TypeArguments[0];
@@ -220,16 +225,11 @@ public sealed class NavigationGenerator : IIncrementalGenerator
             return new PageInfo(mappings.ToImmutable());
         }
 
-        /// <summary>Recognizes the Page mapping attribute without matching unrelated generic attributes.</summary>
-        private static bool IsPageForAttribute(AttributeData attribute) =>
-            attribute.AttributeClass is { MetadataName: "PageForAttribute`1" } attributeClass &&
-            string.Equals(attributeClass.ContainingNamespace.ToDisplayString(), NavigationNamespace, StringComparison.Ordinal);
-
-        /// <summary>Checks WinUI Page inheritance without loading the assembly.</summary>
-        private static bool DerivesFromPage(INamedTypeSymbol type)
+        /// <summary>Checks inheritance from the compilation's WinUI Page type.</summary>
+        private static bool DerivesFrom(INamedTypeSymbol type, INamedTypeSymbol? baseType)
         {
             for (var current = type.BaseType; current is not null; current = current.BaseType)
-                if (string.Equals(current.ToDisplayString(), "Microsoft.UI.Xaml.Controls.Page", StringComparison.Ordinal)) return true;
+                if (SymbolEqualityComparer.Default.Equals(current, baseType)) return true;
             return false;
         }
 
