@@ -34,8 +34,6 @@ internal static class SymbolExtensions
     /// <returns><see langword="true"/> when the candidate derives from the base type.</returns>
     public static bool DerivesFrom(this INamedTypeSymbol symbol, INamedTypeSymbol? baseType)
     {
-        if (baseType is null) return false;
-
         for (var current = symbol.BaseType; current is not null; current = current.BaseType)
             if (SymbolEqualityComparer.Default.Equals(current, baseType))
                 return true;
@@ -73,11 +71,7 @@ internal static class SymbolExtensions
         this INamedTypeSymbol symbol,
         CancellationToken cancellationToken)
     {
-        foreach (var reference in symbol.DeclaringSyntaxReferences)
-            if (reference.GetSyntax(cancellationToken) is not TypeDeclarationSyntax declaration ||
-                !declaration.Modifiers.Any(SyntaxKind.PartialKeyword))
-                return false;
-
-        return symbol.DeclaringSyntaxReferences.Length > 0;
+        return symbol.DeclaringSyntaxReferences.All(reference =>
+            ((TypeDeclarationSyntax)reference.GetSyntax(cancellationToken)).Modifiers.Any(SyntaxKind.PartialKeyword));
     }
 }

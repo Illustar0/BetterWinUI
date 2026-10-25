@@ -45,7 +45,7 @@ internal readonly struct DiagnosticLocation : IEquatable<DiagnosticLocation>
     {
         var lineSpan = location.GetLineSpan();
         return new DiagnosticLocation(
-            lineSpan.Path ?? string.Empty,
+            lineSpan.Path,
             location.SourceSpan,
             lineSpan.Span);
     }

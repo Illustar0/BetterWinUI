@@ -254,7 +254,7 @@ public sealed class NavigationGenerator : IIncrementalGenerator
         internal static SourceLocation Create(Location location)
         {
             var lineSpan = location.GetLineSpan();
-            return new SourceLocation(lineSpan.Path ?? string.Empty, location.SourceSpan, lineSpan.Span);
+            return new SourceLocation(lineSpan.Path, location.SourceSpan, lineSpan.Span);
         }
 
         internal Location ToLocation() => Location.Create(Path, Span, LineSpan);
