@@ -69,17 +69,15 @@ Generated registrations use standard Microsoft DI descriptors and `TryAdd`, so e
 
 Unregistered Pages throw, including Pages with default constructors. Factory and constructor exceptions propagate. There is no native activation fallback or options object.
 
-Call `UsePageActivation(provider)` exactly once after the service provider is built and before navigating to a Page. This installs the base package's hook, so it cannot be combined with another `UsePageActivation(factory)` registration on the same Application. The application owns the service provider and must dispose it at shutdown.
+`UsePageActivation(provider)` is an extension method on the base package's `IPageActivationHook<TPage>`, which the generated App implements. Call it exactly once after the service provider is built and before navigating to a Page. It installs the base package's hook, so it cannot be combined with another `UsePageActivation(factory)` registration on the same Application. An instance method with the same signature on the App takes precedence, as usual in C#. The application owns the service provider and must dispose it at shutdown.
+
+`AddGeneratedPageServices` is generated in the assembly that declares `[GeneratePageActivationHook]`. It adds the local and referenced generated registrations.
 
 `ServiceLifetime.Scoped` is supported. The application owns scope creation and disposal and chooses which provider to pass to `UsePageActivation`. Keep that scope alive while its Pages and dependencies are in use; the hook does not create a scope per navigation.
 
 ## Diagnostics
 
 Application and XAML contract diagnostics are documented in [BetterWinUI.PageActivation](../BetterWinUI.PageActivation/README.md#diagnostics).
-
-### BWPA0001
-
-A user declaration conflicts with `UsePageActivation(IServiceProvider)`. Other overloads are allowed.
 
 ### BWPA0002
 

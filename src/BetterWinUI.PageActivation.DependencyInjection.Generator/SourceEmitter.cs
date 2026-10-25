@@ -52,33 +52,34 @@ internal static class SourceEmitter
     }
 
     /// <summary>
-    /// Emits the application adapter and its composition root.
+    /// Emits the composition root of the assembly that declares the hook application.
     /// </summary>
-    public static void EmitApplication(
+    /// <param name="context">The source production context.</param>
+    /// <param name="hookApplication">The location of the only hook application in the assembly.</param>
+    /// <param name="hasLocalModule">Whether this assembly exports a generated registration module.</param>
+    /// <param name="referencedModules">The generated registration modules exported by references.</param>
+    /// <param name="assemblyName">The name of the composing assembly.</param>
+    public static void EmitCompositionRoot(
         SourceProductionContext context,
-        ImmutableArray<AppModel> apps,
+        DiagnosticLocation hookApplication,
         bool hasLocalModule,
-        ImmutableArray<ReferencedViewModule> referencedModules)
+        ImmutableArray<ReferencedViewModule> referencedModules,
+        string assemblyName)
     {
-        ReportDiagnostics(context, apps.SelectMany(static app => app.Diagnostics));
-        if (apps.Length != 1 || !apps[0].IsValid) return;
-
-        var app = apps[0];
         var compatibleModules =
-            ValidateReferencedModules(context, app, referencedModules);
-        var modules = GetModules(app, hasLocalModule, compatibleModules);
+            ValidateReferencedModules(context, hookApplication, referencedModules);
+        var modules = GetModules(assemblyName, hasLocalModule, compatibleModules);
+        var suffix = NameUtilities.CreateSuffix(assemblyName);
 
-        var source = TemplateRenderer.Render("Application.scriban", new
+        var source = TemplateRenderer.Render("CompositionRoot.scriban", new
         {
-            Namespace = app.Namespace,
-            AppName = app.Name,
-            AppFullName = EscapeXml(app.FullName),
-            app.Suffix,
+            AssemblyName = EscapeXml(assemblyName),
+            Suffix = suffix,
             Modules = modules
         });
 
         context.AddSource(
-            $"{app.Name}.DependencyInjection.PageActivation.g.cs",
+            $"PageActivation.CompositionRoot.{suffix}.g.cs",
             SourceText.From(source, Encoding.UTF8));
     }
 
@@ -86,7 +87,7 @@ internal static class SourceEmitter
         $"PageActivationViewModule_{NameUtilities.CreateSuffix(assemblyName)}";
 
     private static ImmutableArray<string> GetModules(
-        AppModel app,
+        string assemblyName,
         bool hasLocalModule,
         ImmutableArray<ReferencedViewModule> referencedModules)
     {
@@ -94,7 +95,7 @@ internal static class SourceEmitter
 
         if (hasLocalModule)
             modules.Add(
-                "global::" + MetadataNames.GeneratedNamespace + "." + GetModuleName(app.AssemblyName));
+                "global::" + MetadataNames.GeneratedNamespace + "." + GetModuleName(assemblyName));
 
         foreach (var module in referencedModules) modules.Add(module.ModuleTypeName);
         return modules.ToImmutable();
@@ -102,7 +103,7 @@ internal static class SourceEmitter
 
     private static ImmutableArray<ReferencedViewModule> ValidateReferencedModules(
         SourceProductionContext context,
-        AppModel app,
+        DiagnosticLocation hookApplication,
         ImmutableArray<ReferencedViewModule> modules)
     {
         var compatible = ImmutableArray.CreateBuilder<ReferencedViewModule>();
@@ -114,7 +115,7 @@ internal static class SourceEmitter
                     context,
                     new DiagnosticInfo(
                         DiagnosticKind.IncompatibleModule,
-                        app.Location,
+                        hookApplication,
                         module.ModuleTypeName));
                 continue;
             }

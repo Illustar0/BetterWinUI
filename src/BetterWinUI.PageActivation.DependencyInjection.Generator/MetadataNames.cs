@@ -30,19 +30,9 @@ internal static class MetadataNames
         "BetterWinUI.PageActivation.DependencyInjection.PageActivationViewModuleAttribute";
 
     /// <summary>
-    /// The WinUI application metadata name.
-    /// </summary>
-    public const string Application = "Microsoft.UI.Xaml.Application";
-
-    /// <summary>
     /// The WinUI page metadata name.
     /// </summary>
     public const string Page = "Microsoft.UI.Xaml.Controls.Page";
-
-    /// <summary>
-    /// The generated runtime namespace.
-    /// </summary>
-    public const string RuntimeNamespace = "BetterWinUI.PageActivation.DependencyInjection";
 
     /// <summary>
     /// The generated implementation namespace.

@@ -3,8 +3,6 @@ namespace BetterWinUI.PageActivation.DependencyInjection.Generator;
 /// <summary>Identifies diagnostics without retaining Roslyn symbols.</summary>
 internal enum DiagnosticKind : byte
 {
-    /// <summary>Identifies the InitializationMemberConflict diagnostic.</summary>
-    InitializationMemberConflict,
     /// <summary>Identifies the InvalidView diagnostic.</summary>
     InvalidView,
     /// <summary>Identifies the InvalidViewModel diagnostic.</summary>

@@ -4,7 +4,6 @@
 
 Rule ID | Category | Severity | Notes
 --------|----------|----------|------
-| BWPA0001 | BetterWinUI.PageActivation.DependencyInjection | Error | UsePageActivation member conflict |
 | BWPA0002 | BetterWinUI.PageActivation.DependencyInjection | Error | Unsupported view declaration |
 | BWPA0003 | BetterWinUI.PageActivation.DependencyInjection | Error | Unsupported view model declaration |
 | BWPA0004 | BetterWinUI.PageActivation.DependencyInjection | Error | Incompatible page activation view module |

@@ -78,7 +78,7 @@ FrameNavigator navigator = provider.GetRequiredService<FrameNavigator>();
 IDisposable attachment = navigator.Attach(contentFrame);
 ```
 
-On a partial WinUI App marked `[GeneratePageActivationHook]`, the generator supplies the activation methods. A Page constructor can receive its ViewModel and navigator:
+On a partial WinUI App marked `[GeneratePageActivationHook]`, the generator implements `IPageActivationHook<Page>`; the DI package adds `UsePageActivation(IServiceProvider)` as an extension in the `BetterWinUI.PageActivation.DependencyInjection` namespace. A Page constructor can receive its ViewModel and navigator:
 
 ```csharp
 public sealed partial class HomePage : Page

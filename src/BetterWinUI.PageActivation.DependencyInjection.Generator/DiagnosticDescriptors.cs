@@ -6,13 +6,6 @@ internal static class DiagnosticDescriptors
 {
     private const string Category = "BetterWinUI.PageActivation.DependencyInjection";
     private const string HelpRoot = "https://github.com/Illustar0/BetterWinUI/blob/main/src/BetterWinUI.PageActivation.DependencyInjection/README.md";
-    /// <summary>The initialization member conflicts with user code.</summary>
-    public static readonly DiagnosticDescriptor InitializationMemberConflict = Create(
-        "BWPA0001",
-        "UsePageActivation member conflict",
-        "Type '{0}' declares a member that conflicts with UsePageActivation(IServiceProvider)",
-        DiagnosticSeverity.Error);
-
     /// <summary>The view is unsupported.</summary>
     public static readonly DiagnosticDescriptor InvalidView = Create(
         "BWPA0002",
@@ -58,7 +51,6 @@ internal static class DiagnosticDescriptors
     /// <summary>Gets the descriptor for a diagnostic kind.</summary>
     public static DiagnosticDescriptor Get(DiagnosticKind kind) => kind switch
     {
-        DiagnosticKind.InitializationMemberConflict => InitializationMemberConflict,
         DiagnosticKind.InvalidView => InvalidView,
         DiagnosticKind.InvalidViewModel => InvalidViewModel,
         DiagnosticKind.IncompatibleModule => IncompatibleModule,

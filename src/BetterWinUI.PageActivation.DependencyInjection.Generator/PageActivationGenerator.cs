@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace BetterWinUI.PageActivation.DependencyInjection.Generator;
 
 /// <summary>
-/// Generates WinUI page activation adapters and compile-time registration modules.
+/// Generates compile-time registration modules and the hook application's composition root.
 /// </summary>
 [Generator(LanguageNames.CSharp)]
 public sealed class PageActivationGenerator : IIncrementalGenerator
@@ -12,7 +12,7 @@ public sealed class PageActivationGenerator : IIncrementalGenerator
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        var apps = CreateApps(context);
+        var hookApplications = CreateHookApplications(context);
         var views = CreateViews(context);
         var viewModels = CreateViewModels(context);
 
@@ -42,29 +42,26 @@ public sealed class PageActivationGenerator : IIncrementalGenerator
                     input.Right));
 
         context.RegisterSourceOutput(
-            apps.Collect()
+            hookApplications.Collect()
                 .Combine(hasLocalModule)
-                .Combine(referencedModules),
+                .Combine(referencedModules)
+                .Combine(assemblyName),
             static (productionContext, input) =>
             {
-                var appsViewsAndModules = input;
-                var appsAndViews = appsViewsAndModules.Left;
-                SourceEmitter.EmitApplication(
-                    productionContext,
-                    appsAndViews.Left,
-                    appsAndViews.Right,
-                    appsViewsAndModules.Right);
+                var (((applications, hasLocal), modules), name) = input;
+                if (applications.Length != 1) return;
+                SourceEmitter.EmitCompositionRoot(productionContext, applications[0], hasLocal, modules, name);
             });
     }
 
-    private static IncrementalValuesProvider<AppModel> CreateApps(
+    /// <summary>Locates hook applications; the activation generator owns their validation.</summary>
+    private static IncrementalValuesProvider<DiagnosticLocation> CreateHookApplications(
         IncrementalGeneratorInitializationContext context)
     {
         return context.SyntaxProvider.ForAttributeWithMetadataName(
             MetadataNames.GeneratePageActivationHookAttribute,
             static (node, _) => node is ClassDeclarationSyntax,
-            static (syntaxContext, cancellationToken) =>
-                AppModel.Create(syntaxContext, cancellationToken));
+            static (syntaxContext, _) => DiagnosticLocation.Create(syntaxContext.TargetSymbol.Locations[0]));
     }
 
     private static IncrementalValuesProvider<ViewInfo> CreateViews(

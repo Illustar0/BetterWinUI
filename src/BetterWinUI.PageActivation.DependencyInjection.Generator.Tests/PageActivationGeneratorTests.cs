@@ -17,7 +17,6 @@ public sealed class PageActivationGeneratorTests
     private const string MissingXamlProviderDiagnostic = "BWPH0004";
     private const string ActivationConflictDiagnostic = "BWPH0005";
     private const string UnsupportedXamlContractDiagnostic = "BWPH0006";
-    private const string ProviderOverloadConflictDiagnostic = "BWPA0001";
     private const string InvalidViewDiagnostic = "BWPA0002";
     private const string InvalidViewModelDiagnostic = "BWPA0003";
     private const string IncompatibleModuleDiagnostic = "BWPA0004";
@@ -374,9 +373,9 @@ public sealed class PageActivationGeneratorTests
             () => result.RunResult.Diagnostics.ShouldBeEmpty());
     }
 
-    /// <summary>A user provider overload is reported by the DI generator only.</summary>
+    /// <summary>A user provider overload takes precedence over the DI extension without diagnostics.</summary>
     [Fact]
-    public void UsePageActivation_UserProviderOverload_ReportsOnlyProviderConflict()
+    public void UsePageActivation_UserProviderOverload_CompilesWithoutDiagnostics()
     {
         var source = GeneratorTestHost.ValidApplicationSource.Replace(
             InitializeDeclaration,
@@ -384,13 +383,13 @@ public sealed class PageActivationGeneratorTests
             StringComparison.Ordinal);
 
         var result = GeneratorTestHost.Run(
-            "ProviderConflict",
+            "UserProviderOverload",
             (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
             (source, "App.cs"));
 
         result.ShouldSatisfyAllConditions(
-            () => result.ShouldReportDiagnostic(ProviderOverloadConflictDiagnostic),
-            () => result.ShouldNotReportDiagnostic(ActivationConflictDiagnostic));
+            result.ShouldCompile,
+            () => result.RunResult.Diagnostics.ShouldBeEmpty());
     }
 
     /// <summary>Types that a namespace-level module cannot name are reported and left out.</summary>

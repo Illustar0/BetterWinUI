@@ -351,12 +351,6 @@ internal sealed class GenerationResult(
     public void ShouldReportDiagnostic(string id) =>
         RunResult.Diagnostics.ShouldContain(diagnostic => string.Equals(diagnostic.Id, id, StringComparison.Ordinal));
 
-    /// <summary>
-    /// Asserts that the generator did not report a diagnostic identifier.
-    /// </summary>
-    public void ShouldNotReportDiagnostic(string id) =>
-        RunResult.Diagnostics.ShouldNotContain(diagnostic => string.Equals(diagnostic.Id, id, StringComparison.Ordinal));
-
     /// <summary>Calls the fixture application's public generated-registration composition root.</summary>
     public IServiceCollection ConfigureServices(string applicationType)
     {
