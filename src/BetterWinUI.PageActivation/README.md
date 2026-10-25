@@ -2,6 +2,22 @@
 
 Application-owned Page factories for WinUI, without a DI container or navigation dependency. The package includes the source generator that connects a partial WinUI Application to the XAML metadata activation entry point.
 
+## Installation
+
+Add the package to the WinUI application project that declares the `App` class:
+
+```shell
+dotnet add package BetterWinUI.PageActivation
+```
+
+## Requirements
+
+- A WinUI 3 application project on .NET 8 or later that references the Windows App SDK. The package itself targets `net8.0` and does not reference the Windows App SDK; the generator reads the XAML interfaces from the application's own reference.
+- The application's XAML must be compiled in the same project as the `App` class, which must be a concrete, non-generic, top-level `partial` class deriving from `Microsoft.UI.Xaml.Application`.
+- The .NET 8 SDK or later, which the source generator needs to load.
+
+## Usage
+
 ```csharp
 using BetterWinUI.PageActivation;
 using Microsoft.UI.Xaml;

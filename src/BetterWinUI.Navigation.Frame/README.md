@@ -2,6 +2,21 @@
 
 ViewModel-first navigation that directly uses WinUI Frame execution and history.
 
+## Installation
+
+```shell
+dotnet add package BetterWinUI.Navigation.Frame
+```
+
+The package brings in `BetterWinUI.Navigation`, which provides the Page maps.
+
+## Requirements
+
+- A WinUI 3 project that targets `net8.0-windows10.0.26100.0` or later. The OS version in the target framework selects the package assets; the app can still run on Windows 10 version 2004 (build 19041) and later.
+- Windows App SDK 1.8 or later. The package depends on `Microsoft.WindowsAppSDK.WinUI` 1.8.
+
+## Usage
+
 ```csharp
 using BetterWinUI.Navigation;
 using BetterWinUI.Navigation.Frame;

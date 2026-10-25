@@ -2,6 +2,25 @@
 
 Constructor injection for WinUI Pages, built on `BetterWinUI.PageActivation`. The base package owns XAML interception; this package supplies DI registration and a factory that resolves every requested Page using `GetRequiredService`.
 
+## Installation
+
+Add the package and a service container, such as Microsoft's, to the WinUI application project:
+
+```shell
+dotnet add package BetterWinUI.PageActivation.DependencyInjection
+dotnet add package Microsoft.Extensions.DependencyInjection
+```
+
+The package brings in `BetterWinUI.PageActivation` and `Microsoft.Extensions.DependencyInjection.Abstractions`.
+
+## Requirements
+
+- Everything that [BetterWinUI.PageActivation requires](https://github.com/Illustar0/BetterWinUI/blob/main/src/BetterWinUI.PageActivation/README.md#requirements): a WinUI 3 application project on .NET 8 or later whose `App` class is a top-level `partial` class marked with `[GeneratePageActivationHook]`.
+- A service container that builds an `IServiceProvider` from `IServiceCollection`, such as `Microsoft.Extensions.DependencyInjection`.
+- The .NET 8 SDK or later, which the source generators need to load.
+
+## Usage
+
 You can register explicitly in the DI composition root:
 
 ```csharp

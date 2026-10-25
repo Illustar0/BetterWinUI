@@ -1,6 +1,20 @@
 # BetterWinUI.Navigation
 
-ViewModel-first Page mappings for WinUI. This package targets .NET 8 for Windows; it contains no routes, destination registry, or target-wide parameter contracts.
+ViewModel-first Page mappings for WinUI. The package contains no routes, destination registry, or target-wide parameter contracts.
+
+## Installation
+
+```shell
+dotnet add package BetterWinUI.Navigation
+```
+
+The package includes the source generator for `[PageFor]` and `[PageModule]`; no separate generator package is needed.
+
+## Requirements
+
+- A WinUI 3 project that targets `net8.0-windows10.0.26100.0` or later. The OS version in the target framework selects the package assets; the app can still run on Windows 10 version 2004 (build 19041) and later.
+- Windows App SDK 1.8 or later. The package depends on `Microsoft.WindowsAppSDK.WinUI` 1.8.
+- The .NET 8 SDK or later, which the source generator needs to load.
 
 ## Mutable and frozen maps
 
