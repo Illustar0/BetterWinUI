@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Markup;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
+using Shouldly;
 
 [assembly: DoNotParallelize]
 
@@ -14,106 +15,134 @@ public sealed class PageActivationHookTests
 {
     private static App Current => (App)Application.Current;
 
-    /// <summary>Leaves native activation intact until a factory is installed.</summary>
+    /// <summary>Native activation stays intact until a factory is installed.</summary>
     [UITestMethod]
-    public void NativeActivationWorksBeforeHookInstallation() =>
-        Assert.IsInstanceOfType<NativePage>(Current.NativeContent);
+    public void Navigate_BeforeFactoryInstalled_UsesNativeActivation() =>
+        Current.NativeContent.ShouldBeOfType<NativePage>();
 
-    /// <summary>Passes the requested Page type and returns the factory's initialized Page.</summary>
+    /// <summary>Frame navigation passes the requested Page type to the factory and shows its Page.</summary>
     [UITestMethod]
-    public void FrameUsesApplicationFactory()
+    public void Navigate_FactoryPage_UsesApplicationFactory()
     {
         var frame = new Frame();
-        Assert.IsTrue(frame.Navigate(typeof(FactoryPage)));
-        Assert.AreEqual(typeof(FactoryPage), Current.LastRequestedType);
-        Assert.AreSame(Current.Dependency, ((FactoryPage)frame.Content).Dependency);
+
+        var navigated = frame.Navigate(typeof(FactoryPage));
+
+        frame.ShouldSatisfyAllConditions(
+            () => navigated.ShouldBeTrue(),
+            () => Current.LastRequestedType.ShouldBe(typeof(FactoryPage)),
+            () => frame.Content.ShouldBeOfType<FactoryPage>().Dependency.ShouldBeSameAs(Current.Dependency));
     }
 
-    /// <summary>Metadata obtained before registration observes the subsequently installed factory.</summary>
+    /// <summary>Metadata obtained before installation uses the factory installed later.</summary>
     [UITestMethod]
-    public void CachedMetadataUsesInstalledFactory()
+    public void ActivateInstance_MetadataCachedBeforeInstallation_UsesInstalledFactory()
     {
-        var page = (FactoryPage)Current.CachedMetadata.ActivateInstance();
-        Assert.AreSame(Current.Dependency, page.Dependency);
+        var page = Current.CachedMetadata.ActivateInstance();
+
+        page.ShouldBeOfType<FactoryPage>().Dependency.ShouldBeSameAs(Current.Dependency);
     }
 
-    /// <summary>Type and name lookups both use the factory.</summary>
+    /// <summary>Metadata looked up by full name uses the installed factory.</summary>
     [UITestMethod]
-    public void MetadataLookupByNameUsesInstalledFactory()
+    public void GetXamlTypeByName_FactoryPage_UsesInstalledFactory()
     {
         var metadata = (IXamlMetadataProvider)Application.Current;
-        var page = (FactoryPage)metadata.GetXamlType(typeof(FactoryPage).FullName!).ActivateInstance();
-        Assert.AreSame(Current.Dependency, page.Dependency);
+
+        var page = metadata.GetXamlType(typeof(FactoryPage).FullName!).ActivateInstance();
+
+        page.ShouldBeOfType<FactoryPage>().Dependency.ShouldBeSameAs(Current.Dependency);
     }
 
-    /// <summary>Rejects repeated registration without replacing the installed factory.</summary>
+    /// <summary>A factory cannot be installed twice.</summary>
     [UITestMethod]
-    public void RepeatedRegistrationPreservesOriginalFactory()
+    public void UsePageActivation_AlreadyInstalled_ThrowsInvalidOperationException() =>
+        Should.Throw<InvalidOperationException>(() => Current.UsePageActivation(_ => throw new InvalidOperationException()));
+
+    /// <summary>A rejected reinstallation keeps the original factory.</summary>
+    [UITestMethod]
+    public void Navigate_AfterRejectedReinstallation_UsesOriginalFactory()
     {
-        Assert.ThrowsExactly<InvalidOperationException>(() => Current.UsePageActivation(_ => throw new Exception()));
+        Should.Throw<InvalidOperationException>(() => Current.UsePageActivation(_ => throw new InvalidOperationException()));
         var frame = new Frame();
-        Assert.IsTrue(frame.Navigate(typeof(FactoryPage)));
-        Assert.AreSame(Current.Dependency, ((FactoryPage)frame.Content).Dependency);
+
+        frame.Navigate(typeof(FactoryPage));
+
+        frame.Content.ShouldBeOfType<FactoryPage>().Dependency.ShouldBeSameAs(Current.Dependency);
     }
 
-    /// <summary>Rejects a null delegate before attempting to install it.</summary>
+    /// <summary>A null factory is rejected before installation.</summary>
     [UITestMethod]
-    public void NullFactoryIsRejected() =>
-        Assert.ThrowsExactly<ArgumentNullException>(() => Current.UsePageActivation(null!));
+    public void UsePageActivation_NullFactory_ThrowsArgumentNullException() =>
+        Should.Throw<ArgumentNullException>(() => Current.UsePageActivation(null!));
 
-    /// <summary>A null result fails without calling the Page's native default constructor.</summary>
+    /// <summary>A null factory result fails without calling the Page's native constructor.</summary>
     [UITestMethod]
-    public void NullResultDoesNotFallBack()
+    public void Navigate_FactoryReturnsNull_ThrowsWithoutNativeFallback()
     {
         var constructions = NullPage.Constructions;
         var frame = new Frame();
-        Assert.ThrowsExactly<InvalidOperationException>(() => frame.Navigate(typeof(NullPage)));
-        Assert.IsNull(frame.Content);
-        Assert.AreEqual(constructions, NullPage.Constructions);
+
+        Should.Throw<InvalidOperationException>(() => frame.Navigate(typeof(NullPage)));
+
+        frame.ShouldSatisfyAllConditions(
+            () => frame.Content.ShouldBeNull(),
+            () => NullPage.Constructions.ShouldBe(constructions));
     }
 
     /// <summary>An unrelated Page result fails instead of changing the requested type.</summary>
     [UITestMethod]
-    public void IncompatibleResultDoesNotFallBack()
+    public void Navigate_FactoryReturnsIncompatiblePage_ThrowsWithoutNativeFallback()
     {
         var constructions = WrongPage.Constructions;
         var frame = new Frame();
-        Assert.ThrowsExactly<InvalidOperationException>(() => frame.Navigate(typeof(WrongPage)));
-        Assert.IsNull(frame.Content);
-        Assert.AreEqual(constructions, WrongPage.Constructions);
+
+        Should.Throw<InvalidOperationException>(() => frame.Navigate(typeof(WrongPage)));
+
+        frame.ShouldSatisfyAllConditions(
+            () => frame.Content.ShouldBeNull(),
+            () => WrongPage.Constructions.ShouldBe(constructions));
     }
 
-    /// <summary>Preserves factory exceptions without invoking native activation.</summary>
+    /// <summary>Factory exceptions reach the caller unchanged without native activation.</summary>
     [UITestMethod]
-    public void FactoryExceptionPropagates()
+    public void Navigate_FactoryThrows_PropagatesSameExceptionWithoutNativeFallback()
     {
         var constructions = ThrowingPage.Constructions;
         var frame = new Frame();
-        var error = Assert.ThrowsExactly<InvalidOperationException>(() => frame.Navigate(typeof(ThrowingPage)));
-        Assert.AreSame(Current.FactoryFailure, error);
-        Assert.AreEqual(constructions, ThrowingPage.Constructions);
+
+        var exception = Should.Throw<InvalidOperationException>(() => frame.Navigate(typeof(ThrowingPage)));
+
+        exception.ShouldSatisfyAllConditions(
+            () => exception.ShouldBeSameAs(Current.FactoryFailure),
+            () => ThrowingPage.Constructions.ShouldBe(constructions));
     }
 
-    /// <summary>Native cache hits reuse the Page without calling the factory again.</summary>
+    /// <summary>A native cache hit reuses the Page without calling the factory again.</summary>
     [UITestMethod]
-    public void CacheHitDoesNotInvokeFactory()
+    public void GoBack_CachedPage_ReusesPageWithoutInvokingFactory()
     {
         var frame = new Frame();
         frame.Navigate(typeof(FactoryPage));
         var page = frame.Content;
         frame.Navigate(typeof(NativePage));
         var calls = Current.FactoryCalls;
+
         frame.GoBack();
-        Assert.AreSame(page, frame.Content);
-        Assert.AreEqual(calls, Current.FactoryCalls);
+
+        frame.ShouldSatisfyAllConditions(
+            () => frame.Content.ShouldBeSameAs(page),
+            () => Current.FactoryCalls.ShouldBe(calls));
     }
 
-    /// <summary>Direct construction is independent of the XAML activation hook.</summary>
+    /// <summary>Direct construction bypasses the XAML activation hook.</summary>
     [UITestMethod]
-    public void DirectConstructionDoesNotInvokeFactory()
+    public void Constructor_DirectConstruction_DoesNotInvokeFactory()
     {
         var calls = Current.FactoryCalls;
+
         _ = new NativePage();
-        Assert.AreEqual(calls, Current.FactoryCalls);
+
+        Current.FactoryCalls.ShouldBe(calls);
     }
 }
