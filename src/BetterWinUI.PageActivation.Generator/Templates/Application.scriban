@@ -3,7 +3,9 @@
 
 namespace {{ Namespace }}
 {
-    partial class @{{ AppName }} : {{ MetadataProviderInterfaceName }}
+    partial class @{{ AppName }} :
+        {{ MetadataProviderInterfaceName }},
+        global::BetterWinUI.PageActivation.IPageActivationHook<global::Microsoft.UI.Xaml.Controls.Page>
     {
         private global::BetterWinUI.PageActivation.Generated.PageActivationXamlMetadataProvider_{{ Suffix }}?
             __pageActivationProvider;

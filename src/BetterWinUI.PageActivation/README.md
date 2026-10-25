@@ -19,11 +19,13 @@ public sealed partial class App : Application
 }
 ```
 
-The generated method has this contract:
+The generated App implements `IPageActivationHook<Page>`, whose single method has this contract:
 
 ```csharp
 public void UsePageActivation(Func<Type, Microsoft.UI.Xaml.Controls.Page> activate);
 ```
+
+Libraries can build activation policies on `IPageActivationHook<TPage>` without depending on a specific App type.
 
 - Register once per Application instance, before the Pages that need the factory are activated. A second registration throws and leaves the first factory in place; a null delegate is rejected.
 - The callback receives the actual requested Page type and must return a non-null, compatible Page. Null results and incompatible types throw `InvalidOperationException`; factory exceptions propagate.

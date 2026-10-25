@@ -15,6 +15,11 @@ public sealed class PageActivationHookTests
 {
     private static App Current => (App)Application.Current;
 
+    /// <summary>The generated hook application exposes the factory installation interface.</summary>
+    [UITestMethod]
+    public void HookApplication_Generated_ImplementsPageActivationHook() =>
+        Application.Current.ShouldBeAssignableTo<IPageActivationHook<Page>>();
+
     /// <summary>Native activation stays intact until a factory is installed.</summary>
     [UITestMethod]
     public void Navigate_BeforeFactoryInstalled_UsesNativeActivation() =>
