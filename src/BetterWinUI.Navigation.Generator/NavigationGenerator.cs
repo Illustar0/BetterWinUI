@@ -31,7 +31,7 @@ public sealed class NavigationGenerator : IIncrementalGenerator
             static (input, token) => PageInfo.Create(input, token)).Collect();
         var modules = context.SyntaxProvider.ForAttributeWithMetadataName(Prefix + "PageModuleAttribute",
             static (node, _) => node is TypeDeclarationSyntax,
-            static (input, _) => ModuleInfo.Create((INamedTypeSymbol)input.TargetSymbol)).Collect();
+            static (input, token) => ModuleInfo.Create((INamedTypeSymbol)input.TargetSymbol, token)).Collect();
         var compilationInfo = context.CompilationProvider.Select(static (compilation, _) =>
             new CompilationInfo(compilation.AssemblyName ?? "Assembly",
                 compilation.GetTypeByMetadataName(Prefix + "PageMap") is not null));
@@ -164,19 +164,19 @@ public sealed class NavigationGenerator : IIncrementalGenerator
         bool IsValid,
         SourceLocation Location)
     {
-        internal static ModuleInfo Create(INamedTypeSymbol module) => new(
+        internal static ModuleInfo Create(INamedTypeSymbol module, CancellationToken token) => new(
             NavigationGenerator.Name(module),
             module.ContainingNamespace.IsGlobalNamespace ? string.Empty : module.ContainingNamespace.ToDisplayString(),
             module.Name,
             module.ContainingAssembly.Identity.ToString(),
-            IsValidModule(module),
+            IsValidModule(module, token),
             SourceLocation.Create(module.Locations[0]));
 
         /// <summary>Checks declarations that receive a generated module implementation.</summary>
-        private static bool IsValidModule(INamedTypeSymbol module) =>
+        private static bool IsValidModule(INamedTypeSymbol module, CancellationToken token) =>
             module.TypeKind == TypeKind.Class && !module.IsRecord && !module.IsAbstract && !module.IsStatic &&
             module.Arity == 0 && module.ContainingType is null && Accessible(module) && module.GetMembers("Register").Length == 0 &&
-            module.DeclaringSyntaxReferences.All(static reference => reference.GetSyntax() is ClassDeclarationSyntax declaration &&
+            module.DeclaringSyntaxReferences.All(reference => reference.GetSyntax(token) is ClassDeclarationSyntax declaration &&
                 declaration.Modifiers.Any(SyntaxKind.PartialKeyword));
     }
 
