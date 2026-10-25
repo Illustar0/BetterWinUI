@@ -104,12 +104,10 @@ public sealed class PageMap : IReadOnlyDictionary<Type, Type>
             .ToDictionary(static mapping => mapping.Key, static mapping => mapping.Value);
     }
 
-    /// <summary>Checks that a resolved type is a concrete, closed Page subclass.</summary>
+    /// <summary>Rejects the constrained Page arguments that cannot be activated.</summary>
     private static void ValidatePage(Type pageType)
     {
-        ArgumentNullException.ThrowIfNull(pageType);
-        if (pageType == typeof(Page) || !typeof(Page).IsAssignableFrom(pageType) ||
-            pageType.IsAbstract || pageType.ContainsGenericParameters)
+        if (pageType == typeof(Page) || pageType.IsAbstract)
             throw new ArgumentException($"Type '{pageType}' must be a concrete, closed Page subclass.", nameof(pageType));
     }
 }

@@ -12,11 +12,7 @@ public sealed class FrozenPageMap : IReadOnlyDictionary<Type, Type>
     private readonly FrozenDictionary<Type, Type> _pages;
 
     /// <summary>Copies the supplied mappings into an immutable snapshot.</summary>
-    internal FrozenPageMap(IEnumerable<KeyValuePair<Type, Type>> pages)
-    {
-        ArgumentNullException.ThrowIfNull(pages);
-        _pages = pages.ToFrozenDictionary();
-    }
+    internal FrozenPageMap(IEnumerable<KeyValuePair<Type, Type>> pages) => _pages = pages.ToFrozenDictionary();
 
     /// <summary>Gets the number of mapped ViewModel types.</summary>
     public int Count => _pages.Count;
