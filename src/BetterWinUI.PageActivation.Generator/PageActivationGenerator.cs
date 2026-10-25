@@ -29,11 +29,11 @@ public sealed class PageActivationGenerator : IIncrementalGenerator
     private static void Generate(SourceProductionContext output, ImmutableArray<HookApplication> apps, XamlContractModel contract)
     {
         foreach (var diagnostic in apps.SelectMany(static app => app.GetDiagnostics()))
-            Report(output, diagnostic);
+            output.ReportDiagnostic(diagnostic.ToDiagnostic());
         if (apps.Length > 1)
         {
             foreach (var app in apps)
-                Report(output, new DiagnosticInfo(DiagnosticKind.MultipleApps, app.Location));
+                output.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.MultipleApps, app.Location.ToLocation()));
             return;
         }
         if (apps.IsEmpty || !apps[0].IsValid) return;
@@ -41,7 +41,7 @@ public sealed class PageActivationGenerator : IIncrementalGenerator
         if (application.ProviderPropertyName is not null &&
             (!contract.IsAvailable || !contract.HasRequiredInterceptors))
         {
-            Report(output, new DiagnosticInfo(DiagnosticKind.UnsupportedXamlContract, application.Location));
+            output.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.UnsupportedXamlContract, application.Location.ToLocation()));
             return;
         }
         var source = TemplateRenderer.Render(
@@ -59,9 +59,4 @@ public sealed class PageActivationGenerator : IIncrementalGenerator
             });
         output.AddSource($"{application.Name}.PageActivation.g.cs", SourceText.From(source, Encoding.UTF8));
     }
-
-    /// <summary>Reports a value-only diagnostic at its original source location.</summary>
-    private static void Report(SourceProductionContext output, DiagnosticInfo diagnostic) =>
-        output.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.Get(diagnostic.Kind),
-            diagnostic.Location.ToLocation(), diagnostic.Argument));
 }

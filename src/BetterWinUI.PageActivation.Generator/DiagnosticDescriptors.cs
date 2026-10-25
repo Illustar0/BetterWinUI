@@ -48,18 +48,6 @@ internal static class DiagnosticDescriptors
         "The referenced WASDK XAML interfaces do not expose a unique supported GetXamlType(Type), GetXamlType(string), UnderlyingType, and ActivateInstance() interception contract",
         DiagnosticSeverity.Error);
 
-    /// <summary>Gets the descriptor for a diagnostic kind.</summary>
-    public static DiagnosticDescriptor Get(DiagnosticKind kind) => kind switch
-    {
-        DiagnosticKind.AppMustBePartial => AppMustBePartial,
-        DiagnosticKind.InvalidApp => InvalidApp,
-        DiagnosticKind.MultipleApps => MultipleApps,
-        DiagnosticKind.MissingXamlProvider => MissingXamlProvider,
-        DiagnosticKind.InitializationMemberConflict => InitializationMemberConflict,
-        DiagnosticKind.UnsupportedXamlContract => UnsupportedXamlContract,
-        _ => throw new ArgumentOutOfRangeException(nameof(kind))
-    };
-
     private static DiagnosticDescriptor Create(
         string id,
         string title,

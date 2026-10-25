@@ -23,11 +23,11 @@ internal readonly record struct HookApplication(
     /// <summary>Gets the diagnostics that explain why the application cannot be extended or activated.</summary>
     public IEnumerable<DiagnosticInfo> GetDiagnostics()
     {
-        if (!IsSupportedShape) yield return new DiagnosticInfo(DiagnosticKind.InvalidApp, Location, DisplayName);
-        if (!IsPartial) yield return new DiagnosticInfo(DiagnosticKind.AppMustBePartial, Location, DisplayName);
-        if (HasActivationConflict) yield return new DiagnosticInfo(DiagnosticKind.InitializationMemberConflict, Location, DisplayName);
+        if (!IsSupportedShape) yield return new DiagnosticInfo(DiagnosticDescriptors.InvalidApp, Location, DisplayName);
+        if (!IsPartial) yield return new DiagnosticInfo(DiagnosticDescriptors.AppMustBePartial, Location, DisplayName);
+        if (HasActivationConflict) yield return new DiagnosticInfo(DiagnosticDescriptors.InitializationMemberConflict, Location, DisplayName);
         if (IsXamlOutputReady && ProviderPropertyName is null)
-            yield return new DiagnosticInfo(DiagnosticKind.MissingXamlProvider, Location, DisplayName);
+            yield return new DiagnosticInfo(DiagnosticDescriptors.MissingXamlProvider, Location, DisplayName);
     }
 
     /// <summary>Analyzes an attributed application without retaining Roslyn symbols.</summary>

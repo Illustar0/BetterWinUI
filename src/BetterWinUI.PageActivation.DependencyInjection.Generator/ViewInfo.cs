@@ -60,7 +60,7 @@ internal readonly struct ViewInfo : IEquatable<ViewInfo>
 
         if (!validType)
             diagnostics.Add(new DiagnosticInfo(
-                DiagnosticKind.InvalidView,
+                DiagnosticDescriptors.InvalidView,
                 location,
                 symbol.ToDisplayString()));
 
@@ -69,7 +69,7 @@ internal readonly struct ViewInfo : IEquatable<ViewInfo>
         if (lifetime is not ServiceLifetimeValues.Singleton and
             not ServiceLifetimeValues.Scoped and not ServiceLifetimeValues.Transient)
             diagnostics.Add(new DiagnosticInfo(
-                DiagnosticKind.UnsupportedLifetime,
+                DiagnosticDescriptors.UnsupportedLifetime,
                 location,
                 symbol.ToDisplayString()));
 
@@ -77,7 +77,7 @@ internal readonly struct ViewInfo : IEquatable<ViewInfo>
                 !constructor.IsStatic &&
                 constructor.DeclaredAccessibility == Accessibility.Public))
             diagnostics.Add(new DiagnosticInfo(
-                DiagnosticKind.MissingPagePublicConstructor,
+                DiagnosticDescriptors.MissingPagePublicConstructor,
                 location,
                 symbol.ToDisplayString()));
 

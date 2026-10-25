@@ -57,7 +57,7 @@ internal readonly struct ViewModelInfo : IEquatable<ViewModelInfo>
 
         if (!validType)
             diagnostics.Add(new DiagnosticInfo(
-                DiagnosticKind.InvalidViewModel,
+                DiagnosticDescriptors.InvalidViewModel,
                 location,
                 symbol.ToDisplayString()));
 
@@ -69,7 +69,7 @@ internal readonly struct ViewModelInfo : IEquatable<ViewModelInfo>
         if (lifetime is not ServiceLifetimeValues.Singleton and
             not ServiceLifetimeValues.Scoped and not ServiceLifetimeValues.Transient)
             diagnostics.Add(new DiagnosticInfo(
-                DiagnosticKind.UnsupportedLifetime,
+                DiagnosticDescriptors.UnsupportedLifetime,
                 location,
                 symbol.ToDisplayString()));
 
@@ -77,7 +77,7 @@ internal readonly struct ViewModelInfo : IEquatable<ViewModelInfo>
                 !constructor.IsStatic &&
                 constructor.DeclaredAccessibility == Accessibility.Public))
             diagnostics.Add(new DiagnosticInfo(
-                DiagnosticKind.MissingPublicConstructor,
+                DiagnosticDescriptors.MissingPublicConstructor,
                 location,
                 symbol.ToDisplayString()));
 

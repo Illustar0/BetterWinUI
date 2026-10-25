@@ -48,18 +48,6 @@ internal static class DiagnosticDescriptors
         "Type '{0}' must use ServiceLifetime.Transient, ServiceLifetime.Scoped, or ServiceLifetime.Singleton",
         DiagnosticSeverity.Error);
 
-    /// <summary>Gets the descriptor for a diagnostic kind.</summary>
-    public static DiagnosticDescriptor Get(DiagnosticKind kind) => kind switch
-    {
-        DiagnosticKind.InvalidView => InvalidView,
-        DiagnosticKind.InvalidViewModel => InvalidViewModel,
-        DiagnosticKind.IncompatibleModule => IncompatibleModule,
-        DiagnosticKind.MissingPublicConstructor => MissingPublicConstructor,
-        DiagnosticKind.MissingPagePublicConstructor => MissingPagePublicConstructor,
-        DiagnosticKind.UnsupportedLifetime => UnsupportedLifetime,
-        _ => throw new ArgumentOutOfRangeException(nameof(kind))
-    };
-
     private static DiagnosticDescriptor Create(
         string id,
         string title,

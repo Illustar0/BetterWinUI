@@ -111,12 +111,10 @@ internal static class SourceEmitter
         {
             if (!module.IsValid)
             {
-                Report(
-                    context,
-                    new DiagnosticInfo(
-                        DiagnosticKind.IncompatibleModule,
-                        hookApplication,
-                        module.ModuleTypeName));
+                context.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.IncompatibleModule,
+                    hookApplication.ToLocation(),
+                    module.ModuleTypeName));
                 continue;
             }
 
@@ -130,17 +128,7 @@ internal static class SourceEmitter
         SourceProductionContext context,
         IEnumerable<DiagnosticInfo> diagnostics)
     {
-        foreach (var diagnostic in diagnostics) Report(context, diagnostic);
-    }
-
-    private static void Report(
-        SourceProductionContext context,
-        DiagnosticInfo diagnostic)
-    {
-        context.ReportDiagnostic(Diagnostic.Create(
-            DiagnosticDescriptors.Get(diagnostic.Kind),
-            diagnostic.Location.ToLocation(),
-            diagnostic.Argument));
+        foreach (var diagnostic in diagnostics) context.ReportDiagnostic(diagnostic.ToDiagnostic());
     }
 
     private static string EscapeXml(string value)
