@@ -16,7 +16,7 @@ public sealed class PageActivationGenerator : IIncrementalGenerator
         var apps = context.SyntaxProvider.ForAttributeWithMetadataName(
             MetadataNames.GeneratePageActivationHookAttribute,
             static (node, _) => node is ClassDeclarationSyntax,
-            static (input, token) => AppModel.Create(input, token)).Collect();
+            static (input, token) => HookApplication.Analyze(input, token)).Collect();
         var contract = apps.Combine(context.CompilationProvider).Select(
             static (input, token) => input.Left.IsEmpty
                 ? XamlContractModel.Unavailable
@@ -26,9 +26,9 @@ public sealed class PageActivationGenerator : IIncrementalGenerator
     }
 
     /// <summary>Validates the application and emits either the markup-pass stub or the native adapter.</summary>
-    private static void Generate(SourceProductionContext output, ImmutableArray<AppModel> apps, XamlContractModel contract)
+    private static void Generate(SourceProductionContext output, ImmutableArray<HookApplication> apps, XamlContractModel contract)
     {
-        foreach (var diagnostic in apps.SelectMany(static app => app.Diagnostics))
+        foreach (var diagnostic in apps.SelectMany(static app => app.GetDiagnostics()))
             Report(output, diagnostic);
         if (apps.Length > 1)
         {
