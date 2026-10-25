@@ -32,7 +32,7 @@ internal static class SourceEmitter
             .Where(static viewModel => viewModel.IsValid)
             .OrderBy(static viewModel => viewModel.TypeName, StringComparer.Ordinal)
             .ToImmutableArray();
-        if (validViews.IsDefaultOrEmpty && validViewModels.IsDefaultOrEmpty) return;
+        if (validViews.IsEmpty && validViewModels.IsEmpty) return;
 
         var registrations = validViewModels
             .Select(static viewModel => new ViewModelRegistrationTemplateModel(viewModel))

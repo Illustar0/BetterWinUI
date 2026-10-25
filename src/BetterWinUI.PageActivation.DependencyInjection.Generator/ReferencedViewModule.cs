@@ -66,14 +66,11 @@ internal sealed class ReferencedViewModuleSequenceComparer : IEqualityComparer<I
 
     /// <inheritdoc />
     public bool Equals(ImmutableArray<ReferencedViewModule> left, ImmutableArray<ReferencedViewModule> right) =>
-        left.IsDefaultOrEmpty ? right.IsDefaultOrEmpty :
-        !right.IsDefaultOrEmpty && left.SequenceEqual(right);
+        left.SequenceEqual(right);
 
     /// <inheritdoc />
     public int GetHashCode(ImmutableArray<ReferencedViewModule> modules)
     {
-        if (modules.IsDefaultOrEmpty) return 0;
-
         unchecked
         {
             var hashCode = 0;

@@ -36,7 +36,7 @@ public sealed class PageActivationGenerator : IIncrementalGenerator
                 Report(output, new DiagnosticInfo(DiagnosticKind.MultipleApps, app.Location));
             return;
         }
-        if (apps.IsDefaultOrEmpty || !apps[0].IsValid) return;
+        if (apps.IsEmpty || !apps[0].IsValid) return;
         var application = apps[0];
         if (application.ProviderPropertyName is not null &&
             (!contract.IsAvailable || !contract.HasRequiredInterceptors))
