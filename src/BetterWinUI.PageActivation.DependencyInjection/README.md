@@ -77,7 +77,7 @@ Unregistered Pages throw, including Pages with default constructors. Factory and
 
 ## Diagnostics
 
-Application and XAML contract diagnostics are documented in [BetterWinUI.PageActivation](../BetterWinUI.PageActivation/README.md#diagnostics).
+Application and XAML contract diagnostics are documented in [BetterWinUI.PageActivation](https://github.com/Illustar0/BetterWinUI/blob/main/src/BetterWinUI.PageActivation/README.md#diagnostics).
 
 ### BWPA0002
 

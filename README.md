@@ -106,7 +106,7 @@ The solution requires Windows and the .NET 10 SDK:
 ./build.ps1 --target Pack
 ```
 
-[Fallout](https://github.com/Fallout-build/Fallout) restores and builds the solution, runs ordinary and real WinUI tests, and packs the four libraries. See [Testing](docs/testing.md) for individual targets.
+[Fallout](https://github.com/Fallout-build/Fallout) restores and builds the solution, runs ordinary and real WinUI tests, and packs the four libraries. Individual targets such as `UnitTests`, `IntegrationTests`, and `PageActivationAotSmoke` are defined in [build/Build.cs](build/Build.cs).
 
 Releases use Conventional Commits, git-cliff semantic versioning, and NuGet.org Trusted Publishing.
 

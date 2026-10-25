@@ -36,7 +36,7 @@ Libraries can build activation policies on `IPageActivationHook<TPage>` without 
 
 The generator uses Scriban and emits native interface forwarding and WinRT exposure code. It does not use reflection to discover the App's private metadata provider at runtime. The marker assembly targets .NET 8; generated activation code runs in the consuming WinUI application. The generator targets `netstandard2.0` and Roslyn 4.8.
 
-For Microsoft DI registration and constructor injection, use [BetterWinUI.PageActivation.DependencyInjection](../BetterWinUI.PageActivation.DependencyInjection/README.md).
+For Microsoft DI registration and constructor injection, use [BetterWinUI.PageActivation.DependencyInjection](https://github.com/Illustar0/BetterWinUI/blob/main/src/BetterWinUI.PageActivation.DependencyInjection/README.md).
 
 ## Diagnostics
 
