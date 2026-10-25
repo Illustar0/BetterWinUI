@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using System.Reflection;
 using System.Runtime.Loader;
 using BetterWinUI.Navigation.Frame;
@@ -6,6 +5,7 @@ using BetterWinUI.Navigation.Generator;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.UI.Xaml.Controls;
+using Shouldly;
 using Xunit;
 
 namespace BetterWinUI.Navigation.Generator.Tests;
@@ -13,9 +13,52 @@ namespace BetterWinUI.Navigation.Generator.Tests;
 /// <summary>Compiles generated modules and verifies selection and diagnostics across assemblies.</summary>
 public sealed class NavigationGeneratorTests
 {
-    /// <summary>Unrelated source edits reuse an unchanged Page module output.</summary>
+    private const string InvalidPageDiagnostic = "BWNAV001";
+    private const string InvalidModuleDiagnostic = "BWNAV002";
+    private const string ConflictingMappingDiagnostic = "BWNAV003";
+    private const string UnsatisfiedConstraintDiagnostic = "CS0311";
+
+    private const string ConflictingModulesSource = """
+        using BetterWinUI.Navigation;
+        using Microsoft.UI.Xaml.Controls;
+        namespace Fixture;
+        public sealed class Target;
+        [PageModule] public sealed partial class Desktop;
+        [PageModule] public sealed partial class Compact;
+        [PageFor<Target>(Module = typeof(Desktop))] public sealed class A : Page;
+        [PageFor<Target>(Module = typeof(Desktop))] public sealed class B : Page;
+        [PageFor<Target>(Module = typeof(Compact))] public sealed class C : Page;
+        public static class Composition
+        {
+            public static PageMap Create()
+            {
+                var pages = new PageMap();
+                pages.AddGeneratedPages<Compact>();
+                return pages;
+            }
+        }
+        """;
+
+    private const string NavigateCallsSource = """
+        using BetterWinUI.Navigation;
+        using BetterWinUI.Navigation.Frame;
+        public sealed class Target;
+        public sealed class Other;
+        public sealed record Args : INavigationParameter<Target>;
+        public static class Calls
+        {
+            public static void Navigate(FrameNavigator navigator)
+            {
+                navigator.Navigate<Other>(new Args());
+                navigator.Navigate<Target, Args>(new Args());
+                navigator.Navigate<Target>(transitionInfo: null);
+            }
+        }
+        """;
+
+    /// <summary>An unrelated source edit reuses every cached generator output.</summary>
     [Fact]
-    public void UnrelatedEditReusesPageModuleOutput()
+    public void Generator_UnrelatedEdit_ReusesCachedOutputs()
     {
         var compilation = CreateCompilation("IncrementalPages", """
             using BetterWinUI.Navigation;
@@ -29,27 +72,26 @@ public sealed class NavigationGeneratorTests
             [new NavigationGenerator().AsSourceGenerator()],
             parseOptions: parseOptions,
             driverOptions: new GeneratorDriverOptions(default, trackIncrementalGeneratorSteps: true));
-
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out _, TestContext.Current.CancellationToken);
         var edited = compilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(
             "namespace Fixture; internal sealed class Unrelated;",
             parseOptions,
             cancellationToken: TestContext.Current.CancellationToken));
+
         driver = driver.RunGeneratorsAndUpdateCompilation(edited, out var output, out _, TestContext.Current.CancellationToken);
 
-        AssertNoErrors(((CSharpCompilation)output, driver.GetRunResult()));
+        ShouldHaveNoErrors(((CSharpCompilation)output, driver.GetRunResult()));
         var outputs = driver.GetRunResult().Results[0].TrackedOutputSteps.Values
             .SelectMany(static steps => steps)
             .SelectMany(static step => step.Outputs)
             .ToArray();
-        Assert.NotEmpty(outputs);
-        Assert.All(outputs,
-            static result => Assert.Equal(IncrementalStepRunReason.Cached, result.Reason));
+        outputs.ShouldNotBeEmpty();
+        outputs.ShouldAllBe(static result => result.Reason == IncrementalStepRunReason.Cached);
     }
 
-    /// <summary>Verifies referenced defaults remain excluded while public named modules can be selected.</summary>
+    /// <summary>A consumer adds its local defaults and explicitly selected referenced modules only.</summary>
     [Fact]
-    public void ReferencedModulesRequireExplicitSelection()
+    public void AddGeneratedPages_ReferencedAssembly_AddsOnlySelectedNamedModule()
     {
         var feature = Generate("Feature_" + Guid.NewGuid().ToString("N"), """
             using BetterWinUI.Navigation;
@@ -64,11 +106,10 @@ public sealed class NavigationGeneratorTests
             [PageFor<NamedViewModel>(Module = typeof(FeaturePages))]
             public sealed class NamedPage : Page;
             """);
-        AssertNoErrors(feature);
+        ShouldHaveNoErrors(feature);
         var featureImage = Emit(feature.Compilation);
-        using var featureStream = new MemoryStream(featureImage);
-        var featureAssembly = AssemblyLoadContext.Default.LoadFromStream(featureStream);
-        var app = Generate("Consumer_" + Guid.NewGuid().ToString("N"), """
+        var featureAssembly = Load(featureImage);
+        var consumer = Generate("Consumer_" + Guid.NewGuid().ToString("N"), """
             using BetterWinUI.Navigation;
             using Microsoft.UI.Xaml.Controls;
             namespace Consumer;
@@ -86,69 +127,65 @@ public sealed class NavigationGeneratorTests
                 }
             }
             """, MetadataReference.CreateFromImage(featureImage));
-        AssertNoErrors(app);
-        using var appStream = new MemoryStream(Emit(app.Compilation));
-        var assembly = AssemblyLoadContext.Default.LoadFromStream(appStream);
-        var map = (PageMap)assembly.GetType("Consumer.Composition", true)!.GetMethod("Create")!.Invoke(null, null)!;
-        Assert.Equal(2, map.Count);
-        Assert.Equal(assembly.GetType("Consumer.LocalPage", true),
-            map.Resolve(assembly.GetType("Consumer.LocalViewModel", true)!));
-        Assert.Equal(featureAssembly.GetType("Feature.NamedPage", true),
-            map.Resolve(featureAssembly.GetType("Feature.NamedViewModel", true)!));
-        Assert.False(map.ContainsKey(featureAssembly.GetType("Feature.DefaultViewModel", true)!));
+        ShouldHaveNoErrors(consumer);
+        var consumerAssembly = Load(Emit(consumer.Compilation));
+
+        var map = CreatePageMap(consumerAssembly, "Consumer.Composition");
+
+        map.ShouldSatisfyAllConditions(
+            () => map.Count.ShouldBe(2),
+            () => map.Resolve(consumerAssembly.GetType("Consumer.LocalViewModel", true)!)
+                .ShouldBe(consumerAssembly.GetType("Consumer.LocalPage", true)),
+            () => map.Resolve(featureAssembly.GetType("Feature.NamedViewModel", true)!)
+                .ShouldBe(featureAssembly.GetType("Feature.NamedPage", true)),
+            () => map.ContainsKey(featureAssembly.GetType("Feature.DefaultViewModel", true)!).ShouldBeFalse());
     }
 
-    /// <summary>Verifies identical ViewModel targets are legal in different modules but not in one group.</summary>
+    /// <summary>Two mappings for one ViewModel in the same module are both reported.</summary>
     [Fact]
-    public void ConflictsAreScopedToOneModule()
+    public void PageFor_DuplicateTargetInOneModule_ReportsEachConflict()
     {
-        var result = Generate("ConflictingModules", """
-            using BetterWinUI.Navigation;
-            using Microsoft.UI.Xaml.Controls;
-            namespace Fixture;
-            public sealed class Target;
-            [PageModule] public sealed partial class Desktop;
-            [PageModule] public sealed partial class Compact;
-            [PageFor<Target>(Module = typeof(Desktop))] public sealed class A : Page;
-            [PageFor<Target>(Module = typeof(Desktop))] public sealed class B : Page;
-            [PageFor<Target>(Module = typeof(Compact))] public sealed class C : Page;
-            public static class Composition
-            {
-                public static PageMap Create()
-                {
-                    var pages = new PageMap();
-                    pages.AddGeneratedPages<Compact>();
-                    return pages;
-                }
-            }
-            """);
-        Assert.Equal(2, result.Run.Diagnostics.Count(static diagnostic => string.Equals(diagnostic.Id, "BWNAV003", StringComparison.Ordinal)));
-        Assert.DoesNotContain(result.Compilation.GetDiagnostics(TestContext.Current.CancellationToken), static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
-        using var stream = new MemoryStream(Emit(result.Compilation));
-        var assembly = AssemblyLoadContext.Default.LoadFromStream(stream);
-        var map = (PageMap)assembly.GetType("Fixture.Composition", true)!.GetMethod("Create")!.Invoke(null, null)!;
-        Assert.Equal(assembly.GetType("Fixture.C", true), map.Resolve(assembly.GetType("Fixture.Target", true)!));
+        var result = Generate("ConflictingModules", ConflictingModulesSource);
+
+        result.Run.Diagnostics.Count(static diagnostic => HasId(diagnostic, ConflictingMappingDiagnostic)).ShouldBe(2);
     }
 
-    /// <summary>Verifies invalid Page and module declarations produce actionable generator diagnostics.</summary>
+    /// <summary>A conflict in one module does not affect the same ViewModel in another module.</summary>
+    [Fact]
+    public void AddGeneratedPages_ModuleWithoutConflict_MapsItsPage()
+    {
+        var result = Generate("IndependentModules", ConflictingModulesSource);
+        var assembly = Load(Emit(result.Compilation));
+
+        var map = CreatePageMap(assembly, "Fixture.Composition");
+
+        map.Resolve(assembly.GetType("Fixture.Target", true)!).ShouldBe(assembly.GetType("Fixture.C", true));
+    }
+
+    /// <summary>Invalid Page and module declarations report a generator diagnostic and still compile.</summary>
     [Theory]
-    [InlineData("[PageFor<Target>] public sealed class NotPage;", "BWNAV001")]
-    [InlineData("[PageFor<Target>] public abstract class AbstractPage : Page;", "BWNAV001")]
-    [InlineData("[PageFor<Target>] public sealed class GenericPage<T> : Page;", "BWNAV001")]
-    [InlineData("[PageModule] public sealed class MissingPartial;", "BWNAV002")]
-    [InlineData("[PageModule] public static partial class StaticModule;", "BWNAV002")]
-    [InlineData("public sealed class Unmarked; [PageFor<Target>(Module = typeof(Unmarked))] public sealed class A : Page;", "BWNAV002")]
-    [InlineData("[PageFor<Target>(Module = typeof(int[]))] public sealed class A : Page;", "BWNAV002")]
-    public void InvalidDeclarationsAreDiagnosed(string declaration, string diagnosticId)
+    [InlineData("[PageFor<Target>] public sealed class NotPage;", InvalidPageDiagnostic)]
+    [InlineData("[PageFor<Target>] public abstract class AbstractPage : Page;", InvalidPageDiagnostic)]
+    [InlineData("[PageFor<Target>] public sealed class GenericPage<T> : Page;", InvalidPageDiagnostic)]
+    [InlineData("[PageModule] public sealed class MissingPartial;", InvalidModuleDiagnostic)]
+    [InlineData("[PageModule] public static partial class StaticModule;", InvalidModuleDiagnostic)]
+    [InlineData("public sealed class Unmarked; [PageFor<Target>(Module = typeof(Unmarked))] public sealed class A : Page;", InvalidModuleDiagnostic)]
+    [InlineData("[PageFor<Target>(Module = typeof(int[]))] public sealed class A : Page;", InvalidModuleDiagnostic)]
+    public void Generator_InvalidDeclaration_ReportsDiagnosticWithoutCompilationErrors(string declaration, string diagnosticId)
     {
-        var result = Generate("InvalidDeclaration", "using BetterWinUI.Navigation; using Microsoft.UI.Xaml.Controls; namespace Fixture; public sealed class Target; " + declaration);
-        Assert.Contains(result.Run.Diagnostics, diagnostic => string.Equals(diagnostic.Id, diagnosticId, StringComparison.Ordinal));
-        Assert.DoesNotContain(result.Compilation.GetDiagnostics(TestContext.Current.CancellationToken), static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        var source = $"using BetterWinUI.Navigation; using Microsoft.UI.Xaml.Controls; namespace Fixture; public sealed class Target; {declaration}";
+
+        var result = Generate("InvalidDeclaration", source);
+
+        result.ShouldSatisfyAllConditions(
+            () => result.Run.Diagnostics.ShouldContain(diagnostic => HasId(diagnostic, diagnosticId)),
+            () => result.Compilation.GetDiagnostics(TestContext.Current.CancellationToken)
+                .ShouldNotContain(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
     }
 
-    /// <summary>Verifies generated code supports escaped identifiers and global-namespace modules.</summary>
+    /// <summary>Generated code compiles for escaped identifiers in the global namespace.</summary>
     [Fact]
-    public void EscapedAndGlobalNamesCompile()
+    public void PageModule_EscapedNamesInGlobalNamespace_Compiles()
     {
         var result = Generate("EscapedModules", """
             using BetterWinUI.Navigation;
@@ -157,32 +194,29 @@ public sealed class NavigationGeneratorTests
             [PageModule] public sealed partial class @event;
             [PageFor<Target>(Module = typeof(@event))] public sealed class @class : Page;
             """);
-        AssertNoErrors(result);
+
+        ShouldHaveNoErrors(result);
     }
 
-    /// <summary>Verifies open calls accept any parameter while explicit strict calls enforce the marker.</summary>
+    /// <summary>Open navigation accepts any parameter and the strict overload accepts an associated one.</summary>
     [Fact]
-    public void ExplicitGenericOverloadEnforcesParameterAssociation()
+    public void Navigate_OpenAndAssociatedParameters_Compile()
     {
-        const string source = """
-            using BetterWinUI.Navigation;
-            using BetterWinUI.Navigation.Frame;
-            public sealed class Target;
-            public sealed class Other;
-            public sealed record Args : INavigationParameter<Target>;
-            public static class Calls
-            {
-                public static void Navigate(FrameNavigator navigator)
-                {
-                    navigator.Navigate<Other>(new Args());
-                    navigator.Navigate<Target, Args>(new Args());
-                    navigator.Navigate<Target>(transitionInfo: null);
-                }
-            }
-            """;
-        AssertNoErrors(Generate("ValidCalls", source));
-        var invalid = Generate("InvalidCalls", source.Replace("Navigate<Target, Args>", "Navigate<Other, Args>", StringComparison.Ordinal));
-        Assert.Contains(invalid.Compilation.GetDiagnostics(TestContext.Current.CancellationToken), static diagnostic => string.Equals(diagnostic.Id, "CS0311", StringComparison.Ordinal));
+        var result = Generate("ValidCalls", NavigateCallsSource);
+
+        ShouldHaveNoErrors(result);
+    }
+
+    /// <summary>The strict overload rejects a parameter associated with another ViewModel.</summary>
+    [Fact]
+    public void NavigateWithAssociatedParameter_OtherTarget_ReportsUnsatisfiedConstraint()
+    {
+        var source = NavigateCallsSource.Replace("Navigate<Target, Args>", "Navigate<Other, Args>", StringComparison.Ordinal);
+
+        var result = Generate("InvalidCalls", source);
+
+        result.Compilation.GetDiagnostics(TestContext.Current.CancellationToken)
+            .ShouldContain(static diagnostic => HasId(diagnostic, UnsatisfiedConstraintDiagnostic));
     }
 
     /// <summary>Runs the production generator against a standalone compilation.</summary>
@@ -192,7 +226,7 @@ public sealed class NavigationGeneratorTests
         var compilation = CreateCompilation(name, source, extraReferences);
         var parseOptions = (CSharpParseOptions)compilation.SyntaxTrees.First().Options;
         GeneratorDriver driver = CSharpGeneratorDriver.Create([new NavigationGenerator().AsSourceGenerator()], parseOptions: parseOptions);
-        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var output, out _);
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var output, out _, TestContext.Current.CancellationToken);
         return ((CSharpCompilation)output, driver.GetRunResult());
     }
 
@@ -204,24 +238,37 @@ public sealed class NavigationGeneratorTests
             .Append(typeof(PageMap).Assembly.Location).Append(typeof(Page).Assembly.Location)
             .Append(typeof(FrameNavigator).Assembly.Location).Distinct(StringComparer.OrdinalIgnoreCase);
         var references = paths.Select(static path => MetadataReference.CreateFromFile(path)).Cast<MetadataReference>().Concat(extraReferences);
-        return CSharpCompilation.Create(name, [CSharpSyntaxTree.ParseText(source, parseOptions)], references,
+        return CSharpCompilation.Create(name, [CSharpSyntaxTree.ParseText(source, parseOptions, cancellationToken: TestContext.Current.CancellationToken)], references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
     }
 
-    /// <summary>Asserts generated and handwritten sources both compile.</summary>
-    private static void AssertNoErrors((CSharpCompilation Compilation, GeneratorDriverRunResult Run) result)
-    {
-        var errors = result.Run.Diagnostics.Concat(result.Compilation.GetDiagnostics())
-            .Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).ToImmutableArray();
-        Assert.True(errors.IsEmpty, string.Join(Environment.NewLine, errors));
-    }
+    /// <summary>Asserts that generated and handwritten sources both compile.</summary>
+    private static void ShouldHaveNoErrors((CSharpCompilation Compilation, GeneratorDriverRunResult Run) result) =>
+        result.Run.Diagnostics.Concat(result.Compilation.GetDiagnostics(TestContext.Current.CancellationToken))
+            .Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
+            .ShouldBeEmpty();
+
+    /// <summary>Matches a diagnostic identifier exactly.</summary>
+    private static bool HasId(Diagnostic diagnostic, string id) =>
+        string.Equals(diagnostic.Id, id, StringComparison.Ordinal);
 
     /// <summary>Emits an assembly used as a real cross-assembly module reference.</summary>
     private static byte[] Emit(Compilation compilation)
     {
         using var stream = new MemoryStream();
-        var result = compilation.Emit(stream);
-        Assert.True(result.Success, string.Join(Environment.NewLine, result.Diagnostics));
+        var result = compilation.Emit(stream, cancellationToken: TestContext.Current.CancellationToken);
+        result.Success.ShouldBeTrue(string.Join(Environment.NewLine, result.Diagnostics));
         return stream.ToArray();
     }
+
+    /// <summary>Loads an emitted fixture assembly into the default context.</summary>
+    private static Assembly Load(byte[] image)
+    {
+        using var stream = new MemoryStream(image);
+        return AssemblyLoadContext.Default.LoadFromStream(stream);
+    }
+
+    /// <summary>Calls a fixture composition root that returns a Page map.</summary>
+    private static PageMap CreatePageMap(Assembly assembly, string compositionType) =>
+        (PageMap)assembly.GetType(compositionType, true)!.GetMethod("Create")!.Invoke(null, null)!;
 }
