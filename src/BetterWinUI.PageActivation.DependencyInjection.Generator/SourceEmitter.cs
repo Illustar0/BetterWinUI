@@ -136,14 +136,10 @@ internal static class SourceEmitter
         SourceProductionContext context,
         DiagnosticInfo diagnostic)
     {
-        var descriptor = DiagnosticDescriptors.Get(diagnostic.Kind);
-        var created = diagnostic.Argument is null
-            ? Diagnostic.Create(descriptor, diagnostic.Location.ToLocation())
-            : Diagnostic.Create(
-                descriptor,
-                diagnostic.Location.ToLocation(),
-                diagnostic.Argument);
-        context.ReportDiagnostic(created);
+        context.ReportDiagnostic(Diagnostic.Create(
+            DiagnosticDescriptors.Get(diagnostic.Kind),
+            diagnostic.Location.ToLocation(),
+            diagnostic.Argument));
     }
 
     private static string EscapeXml(string value)

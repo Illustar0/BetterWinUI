@@ -91,15 +91,8 @@ internal readonly struct ViewInfo : IEquatable<ViewInfo>
             diagnostics.ToImmutable());
     }
 
-    private static int GetLifetime(AttributeData attribute)
-    {
-        if (attribute.ConstructorArguments.Length == 0)
-            return ServiceLifetimeValues.Transient;
-
-        return attribute.ConstructorArguments[0].Value is int value
-            ? value
-            : int.MinValue;
-    }
+    private static int GetLifetime(AttributeData attribute) =>
+        attribute.ConstructorArguments is [{ Value: int value }] ? value : int.MinValue;
 
     /// <inheritdoc />
     public bool Equals(ViewInfo other)
