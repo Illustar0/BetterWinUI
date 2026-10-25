@@ -6,8 +6,7 @@ namespace {{ Namespace }}
 {{ end }}
     partial class {{ ModuleName }} : global::BetterWinUI.Navigation.IPageModule
     {
-        /// <summary>Adds this module's mappings to an isolated staging map.</summary>
-        /// <param name="pages">The staging map supplied by the module loader.</param>
+        /// <inheritdoc />
         public static void Register(global::BetterWinUI.Navigation.PageMap pages)
         {
 {{ for mapping in Mappings }}

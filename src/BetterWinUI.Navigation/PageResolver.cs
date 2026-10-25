@@ -4,22 +4,28 @@ namespace BetterWinUI.Navigation;
 
 /// <summary>Chooses the Page type that presents a ViewModel-first navigation target.</summary>
 /// <remarks>
-/// Page maps are resolvers; <see cref="Create" /> adapts an application-defined policy.
-/// Every resolved type is checked before it reaches a navigator.
+/// <see cref="PageMap" /> and <see cref="FrozenPageMap" /> are resolvers, and <see cref="Create" /> adapts an
+/// application-defined policy. A resolver selects Page types only; it does not construct Pages or bind ViewModels.
 /// </remarks>
 public abstract class PageResolver
 {
-    /// <summary>Restricts resolvers to the Page maps and <see cref="Create" />.</summary>
+    // Derivation is limited to this assembly so that every resolver goes through the Page check in Resolve.
     private protected PageResolver()
     {
     }
 
-    /// <summary>Resolves the Page type for a navigation target.</summary>
-    /// <param name="viewModelType">The logical target.</param>
-    /// <param name="parameter">The original navigation parameter, or null when no parameter is supplied.</param>
+    /// <summary>Selects the Page type for a navigation target.</summary>
+    /// <param name="viewModelType">The ViewModel type that identifies the navigation target.</param>
+    /// <param name="parameter">The original navigation parameter, or <see langword="null" /> if none is supplied.</param>
     /// <returns>A concrete, closed Page subclass.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="viewModelType" /> is null.</exception>
-    /// <exception cref="ArgumentException">The resolved type is not a concrete, closed Page subclass.</exception>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="viewModelType" /> is <see langword="null" />.
+    /// -or-
+    /// The resolver selected <see langword="null" />.
+    /// </exception>
+    /// <exception cref="ArgumentException">The selected type is not a concrete, closed Page subclass.</exception>
+    /// <exception cref="KeyNotFoundException">A map does not contain <paramref name="viewModelType" />.</exception>
+    /// <remarks>Exceptions thrown by a policy from <see cref="Create" /> propagate unchanged.</remarks>
     public Type Resolve(Type viewModelType, object? parameter)
     {
         ArgumentNullException.ThrowIfNull(viewModelType);
@@ -27,21 +33,20 @@ public abstract class PageResolver
     }
 
     /// <summary>Creates a resolver from an application-defined Page selection policy.</summary>
-    /// <param name="resolve">Selects a Page type from the ViewModel type and original parameter.</param>
+    /// <param name="resolve">
+    /// A function that receives the ViewModel type and the original navigation parameter and returns a Page type.
+    /// </param>
     /// <returns>A resolver that checks every Page type the policy returns.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="resolve" /> is null.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="resolve" /> is <see langword="null" />.</exception>
     public static PageResolver Create(Func<Type, object?, Type> resolve)
     {
         ArgumentNullException.ThrowIfNull(resolve);
         return new PolicyPageResolver(resolve);
     }
 
-    /// <summary>Selects the Page type for a non-null ViewModel type.</summary>
     private protected abstract Type ResolveCore(Type viewModelType, object? parameter);
 
     /// <summary>Rejects types that WinUI cannot activate as a Page.</summary>
-    /// <param name="pageType">The candidate Page type.</param>
-    /// <returns>The validated Page type.</returns>
     private protected static Type EnsurePage(Type pageType)
     {
         ArgumentNullException.ThrowIfNull(pageType);
@@ -51,10 +56,8 @@ public abstract class PageResolver
         return pageType;
     }
 
-    /// <summary>Adapts an application-defined Page selection policy.</summary>
     private sealed class PolicyPageResolver(Func<Type, object?, Type> resolve) : PageResolver
     {
-        /// <inheritdoc />
         private protected override Type ResolveCore(Type viewModelType, object? parameter) =>
             resolve(viewModelType, parameter);
     }

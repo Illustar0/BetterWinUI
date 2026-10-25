@@ -4,24 +4,27 @@ using Microsoft.UI.Xaml.Controls;
 
 namespace BetterWinUI.Navigation;
 
-/// <summary>Stores mutable ViewModel-to-Page mappings for one or more navigators.</summary>
-/// <remarks>This collection is not thread-safe. Coordinate changes with navigation on the owning UI thread.</remarks>
+/// <summary>Stores mutable mappings from ViewModel types to the Page types that present them.</summary>
+/// <remarks>
+/// A navigator that uses this map sees later changes on its next navigation. Call <see cref="Freeze" /> for an
+/// independent snapshot. The map is not thread-safe; change it on the UI thread that owns its navigators.
+/// </remarks>
 public sealed class PageMap : PageResolver, IReadOnlyDictionary<Type, Type>
 {
     private Dictionary<Type, Type> _pages = [];
 
-    /// <summary>
-    /// Creates an immutable snapshot of the current mappings.
-    /// </summary>
-    /// <returns>
-    /// A frozen map that is unaffected by subsequent changes to this map.
-    /// </returns>
+    /// <summary>Creates an immutable snapshot of the current mappings.</summary>
+    /// <returns>A frozen map that later changes to this map do not affect.</returns>
     public FrozenPageMap Freeze() => new(_pages);
 
     /// <summary>Gets the number of mapped ViewModel types.</summary>
     public int Count => _pages.Count;
 
-    /// <inheritdoc />
+    /// <summary>Gets the Page type mapped to a ViewModel type.</summary>
+    /// <param name="key">The ViewModel type.</param>
+    /// <returns>The mapped Page type.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="key" /> is <see langword="null" />.</exception>
+    /// <exception cref="KeyNotFoundException"><paramref name="key" /> is not mapped.</exception>
     public Type this[Type key] => Resolve(key);
 
     /// <inheritdoc />
@@ -39,50 +42,65 @@ public sealed class PageMap : PageResolver, IReadOnlyDictionary<Type, Type>
     /// <inheritdoc />
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-    /// <summary>Adds a mapping, throwing ArgumentException if the ViewModel already exists.</summary>
-    /// <typeparam name="TViewModel">The logical target.</typeparam>
-    /// <typeparam name="TPage">The concrete Page type.</typeparam>
+    /// <summary>Maps a ViewModel type to a Page type.</summary>
+    /// <typeparam name="TViewModel">The ViewModel type that identifies the navigation target.</typeparam>
+    /// <typeparam name="TPage">The concrete Page type that presents the target.</typeparam>
+    /// <exception cref="ArgumentException">
+    /// <typeparamref name="TViewModel" /> is already mapped.
+    /// -or-
+    /// <typeparamref name="TPage" /> is the Page base type or abstract.
+    /// </exception>
     public void Add<TViewModel, TPage>() where TViewModel : class where TPage : Page
     {
         _pages.Add(typeof(TViewModel), EnsurePage(typeof(TPage)));
     }
 
-    /// <summary>Adds a mapping only if the ViewModel is absent.</summary>
-    /// <typeparam name="TViewModel">The logical target.</typeparam>
-    /// <typeparam name="TPage">The concrete Page type.</typeparam>
-    /// <returns>Whether the mapping was added.</returns>
+    /// <summary>Maps a ViewModel type to a Page type unless the ViewModel type is already mapped.</summary>
+    /// <typeparam name="TViewModel">The ViewModel type that identifies the navigation target.</typeparam>
+    /// <typeparam name="TPage">The concrete Page type that presents the target.</typeparam>
+    /// <returns>
+    /// <see langword="true" /> if the mapping was added; <see langword="false" /> if
+    /// <typeparamref name="TViewModel" /> was already mapped, in which case its mapping is kept.
+    /// </returns>
+    /// <exception cref="ArgumentException"><typeparamref name="TPage" /> is the Page base type or abstract.</exception>
     public bool TryAdd<TViewModel, TPage>() where TViewModel : class where TPage : Page
     {
         return _pages.TryAdd(typeof(TViewModel), EnsurePage(typeof(TPage)));
     }
 
-    /// <summary>Adds or replaces a mapping.</summary>
-    /// <typeparam name="TViewModel">The logical target.</typeparam>
-    /// <typeparam name="TPage">The concrete Page type.</typeparam>
+    /// <summary>Maps a ViewModel type to a Page type, replacing any existing mapping.</summary>
+    /// <typeparam name="TViewModel">The ViewModel type that identifies the navigation target.</typeparam>
+    /// <typeparam name="TPage">The concrete Page type that presents the target.</typeparam>
+    /// <exception cref="ArgumentException"><typeparamref name="TPage" /> is the Page base type or abstract.</exception>
     public void Set<TViewModel, TPage>() where TViewModel : class where TPage : Page
     {
         _pages[typeof(TViewModel)] = EnsurePage(typeof(TPage));
     }
 
-    /// <summary>Removes a ViewModel mapping.</summary>
-    /// <typeparam name="TViewModel">The logical target.</typeparam>
-    /// <returns>Whether a mapping was removed.</returns>
+    /// <summary>Removes the mapping of a ViewModel type.</summary>
+    /// <typeparam name="TViewModel">The ViewModel type to unmap.</typeparam>
+    /// <returns><see langword="true" /> if a mapping was removed; otherwise, <see langword="false" />.</returns>
     public bool Remove<TViewModel>() where TViewModel : class => _pages.Remove(typeof(TViewModel));
 
     /// <inheritdoc />
     public bool TryGetValue(Type key, [NotNullWhen(true)] out Type? value) =>
         _pages.TryGetValue(key, out value);
 
-    /// <summary>Attempts to find a ViewModel's current Page mapping.</summary>
-    /// <typeparam name="TViewModel">The logical target.</typeparam>
-    /// <param name="pageType">The Page type when found.</param>
-    /// <returns>Whether a mapping exists.</returns>
+    /// <summary>Gets the Page type mapped to a ViewModel type.</summary>
+    /// <typeparam name="TViewModel">The ViewModel type to look up.</typeparam>
+    /// <param name="pageType">
+    /// When this method returns, contains the mapped Page type if the ViewModel type is mapped; otherwise,
+    /// <see langword="null" />.
+    /// </param>
+    /// <returns><see langword="true" /> if the ViewModel type is mapped; otherwise, <see langword="false" />.</returns>
     public bool TryGetValue<TViewModel>([NotNullWhen(true)] out Type? pageType) where TViewModel : class =>
         _pages.TryGetValue(typeof(TViewModel), out pageType);
 
-    /// <summary>Resolves a ViewModel or throws KeyNotFoundException when it is unmapped.</summary>
-    /// <param name="viewModelType">The logical target.</param>
-    /// <returns>The currently mapped Page type.</returns>
+    /// <summary>Gets the Page type mapped to a ViewModel type.</summary>
+    /// <param name="viewModelType">The ViewModel type to look up.</param>
+    /// <returns>The mapped Page type.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="viewModelType" /> is <see langword="null" />.</exception>
+    /// <exception cref="KeyNotFoundException"><paramref name="viewModelType" /> is not mapped.</exception>
     public Type Resolve(Type viewModelType)
     {
         ArgumentNullException.ThrowIfNull(viewModelType);
@@ -91,10 +109,14 @@ public sealed class PageMap : PageResolver, IReadOnlyDictionary<Type, Type>
             : throw new KeyNotFoundException($"No Page is mapped for ViewModel '{viewModelType}'.");
     }
 
-    /// <summary>Atomically adds a module, leaving this map unchanged if registration fails.</summary>
-    /// <typeparam name="TModule">The generated or manually implemented module.</typeparam>
+    /// <summary>Adds every mapping of a Page module, or none of them if registration fails.</summary>
+    /// <typeparam name="TModule">The generated or handwritten Page module.</typeparam>
+    /// <exception cref="ArgumentException">The module maps a ViewModel type that this map already contains.</exception>
+    /// <remarks>Exceptions thrown by the module's registration propagate, and this map stays unchanged.</remarks>
     public void AddGeneratedPages<TModule>() where TModule : IPageModule
     {
+        // The module registers into a staging map so that a conflict or a failure partway through
+        // registration leaves this map unchanged.
         var staged = new PageMap();
         TModule.Register(staged);
         _pages = _pages.Concat(staged._pages)
