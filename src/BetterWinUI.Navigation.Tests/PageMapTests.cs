@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml.Controls;
+using Shouldly;
 using Xunit;
 
 namespace BetterWinUI.Navigation.Tests;
@@ -6,117 +7,258 @@ namespace BetterWinUI.Navigation.Tests;
 /// <summary>Verifies mapping, mutation, snapshot, and module composition behavior.</summary>
 public sealed class PageMapTests
 {
-    /// <summary>Add rejects duplicate keys while TryAdd preserves the existing mapping.</summary>
+    /// <summary>Supplies a mutable map and a frozen map that both contain the home mapping.</summary>
+    public static TheoryData<IReadOnlyDictionary<Type, Type>> HomeMaps =>
+        new() { CreateHomeMap(), CreateHomeMap().Freeze() };
+
+    /// <summary>Add rejects a second mapping for the same ViewModel.</summary>
     [Fact]
-    public void DuplicateAddPreservesOriginalPage()
+    public void Add_ExistingViewModel_ThrowsAndKeepsOriginalPage()
     {
-        var pages = new PageMap();
-        pages.Add<HomeViewModel, HomePage>();
-        Assert.False(pages.TryAdd<HomeViewModel, DetailPage>());
-        Assert.Throws<ArgumentException>(() => pages.Add<HomeViewModel, DetailPage>());
-        Assert.Equal(typeof(HomePage), pages.Resolve(typeof(HomeViewModel)));
+        var pages = CreateHomeMap();
+
+        Should.Throw<ArgumentException>(() => pages.Add<HomeViewModel, DetailPage>());
+
+        pages.Resolve(typeof(HomeViewModel)).ShouldBe(typeof(HomePage));
     }
 
-    /// <summary>Set supports both insertion and replacement, and Remove reports its result.</summary>
+    /// <summary>TryAdd reports a duplicate without replacing the mapping.</summary>
     [Fact]
-    public void SetAndRemoveUpdateMappings()
+    public void TryAdd_ExistingViewModel_ReturnsFalseAndKeepsOriginalPage()
+    {
+        var pages = CreateHomeMap();
+
+        var added = pages.TryAdd<HomeViewModel, DetailPage>();
+
+        added.ShouldBeFalse();
+        pages.Resolve(typeof(HomeViewModel)).ShouldBe(typeof(HomePage));
+    }
+
+    /// <summary>Set inserts a mapping for an unmapped ViewModel.</summary>
+    [Fact]
+    public void Set_UnmappedViewModel_AddsMapping()
     {
         var pages = new PageMap();
+
         pages.Set<HomeViewModel, HomePage>();
-        pages.Set<HomeViewModel, DetailPage>();
-        Assert.Equal(typeof(DetailPage), pages.Resolve(typeof(HomeViewModel)));
-        Assert.True(pages.Remove<HomeViewModel>());
-        Assert.False(pages.Remove<HomeViewModel>());
-        Assert.False(pages.TryGetValue<HomeViewModel>(out _));
-        Assert.Throws<KeyNotFoundException>(() => pages.Resolve(typeof(HomeViewModel)));
+
+        pages.Resolve(typeof(HomeViewModel)).ShouldBe(typeof(HomePage));
     }
 
-    /// <summary>Frozen maps preserve their values when the mutable source is edited.</summary>
+    /// <summary>Set replaces the Page of an existing mapping.</summary>
     [Fact]
-    public void FreezeCreatesAnIndependentSnapshot()
+    public void Set_MappedViewModel_ReplacesPage()
+    {
+        var pages = CreateHomeMap();
+
+        pages.Set<HomeViewModel, DetailPage>();
+
+        pages.Resolve(typeof(HomeViewModel)).ShouldBe(typeof(DetailPage));
+    }
+
+    /// <summary>Remove deletes an existing mapping.</summary>
+    [Fact]
+    public void Remove_MappedViewModel_ReturnsTrueAndRemovesMapping()
+    {
+        var pages = CreateHomeMap();
+
+        var removed = pages.Remove<HomeViewModel>();
+
+        removed.ShouldBeTrue();
+        pages.TryGetValue<HomeViewModel>(out _).ShouldBeFalse();
+    }
+
+    /// <summary>Remove reports that an unmapped ViewModel was absent.</summary>
+    [Fact]
+    public void Remove_UnmappedViewModel_ReturnsFalse()
     {
         var pages = new PageMap();
-        pages.Add<HomeViewModel, HomePage>();
+
+        var removed = pages.Remove<HomeViewModel>();
+
+        removed.ShouldBeFalse();
+    }
+
+    /// <summary>Resolve rejects a ViewModel without a mapping.</summary>
+    [Fact]
+    public void Resolve_UnmappedViewModel_ThrowsKeyNotFoundException()
+    {
+        var pages = new PageMap();
+
+        Should.Throw<KeyNotFoundException>(() => pages.Resolve(typeof(HomeViewModel)));
+    }
+
+    /// <summary>Add rejects the Page base type because it is not a concrete subclass.</summary>
+    [Fact]
+    public void Add_BasePageType_ThrowsArgumentException()
+    {
+        var pages = new PageMap();
+
+        Should.Throw<ArgumentException>(() => pages.Add<HomeViewModel, Page>());
+    }
+
+    /// <summary>Set rejects an abstract Page type.</summary>
+    [Fact]
+    public void Set_AbstractPage_ThrowsArgumentException()
+    {
+        var pages = new PageMap();
+
+        Should.Throw<ArgumentException>(() => pages.Set<HomeViewModel, AbstractPage>());
+    }
+
+    /// <summary>Add accepts Pages that require constructor injection.</summary>
+    [Fact]
+    public void Add_ConstructorInjectedPage_AddsMapping()
+    {
+        var pages = new PageMap();
+
+        pages.Add<HomeViewModel, ConstructorInjectedPage>();
+
+        pages.Resolve(typeof(HomeViewModel)).ShouldBe(typeof(ConstructorInjectedPage));
+    }
+
+    /// <summary>A frozen map keeps its mappings when the source map changes.</summary>
+    [Fact]
+    public void Freeze_SourceChangedAfterFreeze_KeepsSnapshot()
+    {
+        var pages = CreateHomeMap();
         var frozen = pages.Freeze();
+
         pages.Set<HomeViewModel, DetailPage>();
         pages.Set<DetailViewModel, DetailPage>();
-        Assert.Equal(typeof(HomePage), frozen.Resolve(typeof(HomeViewModel)));
-        Assert.True(frozen.TryGetValue<HomeViewModel>(out var home));
-        Assert.Equal(typeof(HomePage), home);
-        Assert.False(frozen.TryGetValue<DetailViewModel>(out _));
-        Assert.Single(frozen);
-        Assert.Equal(2, pages.Count);
+
+        frozen.ShouldSatisfyAllConditions(
+            () => frozen.Resolve(typeof(HomeViewModel)).ShouldBe(typeof(HomePage)),
+            () => frozen.TryGetValue<DetailViewModel>(out _).ShouldBeFalse(),
+            () => frozen.Count.ShouldBe(1));
     }
 
-    /// <summary>Both maps expose standard read-only dictionary lookup and enumeration.</summary>
+    /// <summary>The indexer returns the mapped Page.</summary>
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void ReadOnlyDictionaryExposesMappings(bool freeze)
+    [MemberData(nameof(HomeMaps), DisableDiscoveryEnumeration = true)]
+    public void Indexer_MappedViewModel_ReturnsPage(IReadOnlyDictionary<Type, Type> map)
     {
-        var pages = new PageMap();
-        pages.Add<HomeViewModel, HomePage>();
-        IReadOnlyDictionary<Type, Type> map = freeze ? pages.Freeze() : pages;
-        Assert.Equal(typeof(HomePage), map[typeof(HomeViewModel)]);
-        Assert.True(map.ContainsKey(typeof(HomeViewModel)));
-        Assert.True(map.TryGetValue(typeof(HomeViewModel), out var value));
-        Assert.Equal(typeof(HomePage), value);
-        Assert.False(map.TryGetValue(typeof(DetailViewModel), out var missing));
-        Assert.Null(missing);
-        Assert.Equal(typeof(HomeViewModel), Assert.Single(map.Keys));
-        Assert.Equal(typeof(HomePage), Assert.Single(map.Values));
-        Assert.Equal(new KeyValuePair<Type, Type>(typeof(HomeViewModel), typeof(HomePage)), Assert.Single(map));
-        Assert.Throws<KeyNotFoundException>(() => map[typeof(DetailViewModel)]);
-        Assert.Throws<ArgumentNullException>(() => map[null!]);
+        var page = map[typeof(HomeViewModel)];
+
+        page.ShouldBe(typeof(HomePage));
     }
 
-    /// <summary>Only concrete Page subclasses are accepted, including injected constructors.</summary>
-    [Fact]
-    public void PageValidationAllowsConstructorInjection()
+    /// <summary>The indexer rejects an unmapped ViewModel.</summary>
+    [Theory]
+    [MemberData(nameof(HomeMaps), DisableDiscoveryEnumeration = true)]
+    public void Indexer_UnmappedViewModel_ThrowsKeyNotFoundException(IReadOnlyDictionary<Type, Type> map) =>
+        Should.Throw<KeyNotFoundException>(() => map[typeof(DetailViewModel)]);
+
+    /// <summary>The indexer rejects a null key.</summary>
+    [Theory]
+    [MemberData(nameof(HomeMaps), DisableDiscoveryEnumeration = true)]
+    public void Indexer_NullKey_ThrowsArgumentNullException(IReadOnlyDictionary<Type, Type> map) =>
+        Should.Throw<ArgumentNullException>(() => map[null!]);
+
+    /// <summary>ContainsKey finds a mapped ViewModel.</summary>
+    [Theory]
+    [MemberData(nameof(HomeMaps), DisableDiscoveryEnumeration = true)]
+    public void ContainsKey_MappedViewModel_ReturnsTrue(IReadOnlyDictionary<Type, Type> map)
     {
-        var pages = new PageMap();
-        Assert.Throws<ArgumentException>(() => pages.Add<HomeViewModel, Page>());
-        Assert.Throws<ArgumentException>(() => pages.Set<HomeViewModel, AbstractPage>());
-        pages.Add<HomeViewModel, ConstructorInjectedPage>();
-        Assert.Equal(typeof(ConstructorInjectedPage), pages.Resolve(typeof(HomeViewModel)));
+        var contains = map.ContainsKey(typeof(HomeViewModel));
+
+        contains.ShouldBeTrue();
     }
 
-    /// <summary>Default declarations and explicitly selected named modules compose independently.</summary>
+    /// <summary>TryGetValue returns the mapped Page.</summary>
+    [Theory]
+    [MemberData(nameof(HomeMaps), DisableDiscoveryEnumeration = true)]
+    public void TryGetValue_MappedViewModel_ReturnsPage(IReadOnlyDictionary<Type, Type> map)
+    {
+        var found = map.TryGetValue(typeof(HomeViewModel), out var page);
+
+        found.ShouldBeTrue();
+        page.ShouldBe(typeof(HomePage));
+    }
+
+    /// <summary>TryGetValue reports an unmapped ViewModel without a Page.</summary>
+    [Theory]
+    [MemberData(nameof(HomeMaps), DisableDiscoveryEnumeration = true)]
+    public void TryGetValue_UnmappedViewModel_ReturnsFalseAndNull(IReadOnlyDictionary<Type, Type> map)
+    {
+        var found = map.TryGetValue(typeof(DetailViewModel), out var page);
+
+        found.ShouldBeFalse();
+        page.ShouldBeNull();
+    }
+
+    /// <summary>Enumeration, keys, and values expose the same single mapping.</summary>
+    [Theory]
+    [MemberData(nameof(HomeMaps), DisableDiscoveryEnumeration = true)]
+    public void Enumeration_SingleMapping_ExposesMapping(IReadOnlyDictionary<Type, Type> map) =>
+        map.ShouldSatisfyAllConditions(
+            () => map.ShouldHaveSingleItem().ShouldBe(new KeyValuePair<Type, Type>(typeof(HomeViewModel), typeof(HomePage))),
+            () => map.Keys.ShouldHaveSingleItem().ShouldBe(typeof(HomeViewModel)),
+            () => map.Values.ShouldHaveSingleItem().ShouldBe(typeof(HomePage)));
+
+    /// <summary>The default group adds only mappings without a named module.</summary>
     [Fact]
-    public void NamedModulesRequireExplicitSelection()
+    public void AddGeneratedPages_DefaultGroup_AddsOnlyUngroupedMappings()
     {
         var pages = new PageMap();
+
         pages.AddGeneratedPages();
-        Assert.Single(pages);
-        Assert.Equal(typeof(HomePage), pages.Resolve(typeof(HomeViewModel)));
-        pages.AddGeneratedPages<DesktopPages>();
-        Assert.Equal(typeof(DetailPage), pages.Resolve(typeof(DetailViewModel)));
-        var compact = new PageMap();
-        compact.AddGeneratedPages<CompactPages>();
-        Assert.Equal(typeof(CompactPage), compact.Resolve(typeof(DetailViewModel)));
-        Assert.Equal(typeof(CompactPage), compact.Resolve(typeof(OtherViewModel)));
+
+        pages.ShouldHaveSingleItem().ShouldBe(new KeyValuePair<Type, Type>(typeof(HomeViewModel), typeof(HomePage)));
     }
 
-    /// <summary>A conflicting module does not leave partially added mappings.</summary>
+    /// <summary>A selected named module adds its own mappings.</summary>
     [Fact]
-    public void ConflictingModuleLeavesMapUnchanged()
+    public void AddGeneratedPages_NamedModule_AddsModuleMappings()
+    {
+        var pages = new PageMap();
+
+        pages.AddGeneratedPages<DesktopPages>();
+
+        pages.ShouldHaveSingleItem().ShouldBe(new KeyValuePair<Type, Type>(typeof(DetailViewModel), typeof(DetailPage)));
+    }
+
+    /// <summary>A Page declared for several ViewModels maps each of them.</summary>
+    [Fact]
+    public void AddGeneratedPages_SharedPage_MapsEveryViewModel()
+    {
+        var pages = new PageMap();
+
+        pages.AddGeneratedPages<CompactPages>();
+
+        pages.ShouldSatisfyAllConditions(
+            () => pages.Resolve(typeof(DetailViewModel)).ShouldBe(typeof(CompactPage)),
+            () => pages.Resolve(typeof(OtherViewModel)).ShouldBe(typeof(CompactPage)));
+    }
+
+    /// <summary>A module that conflicts with an existing mapping adds none of its mappings.</summary>
+    [Fact]
+    public void AddGeneratedPages_ConflictingModule_ThrowsAndLeavesMapUnchanged()
     {
         var pages = new PageMap();
         pages.AddGeneratedPages<DesktopPages>();
-        Assert.Throws<ArgumentException>(() => pages.AddGeneratedPages<CompactPages>());
-        Assert.Single(pages);
-        Assert.False(pages.ContainsKey(typeof(OtherViewModel)));
-        Assert.Equal(typeof(DetailPage), pages.Resolve(typeof(DetailViewModel)));
+
+        Should.Throw<ArgumentException>(() => pages.AddGeneratedPages<CompactPages>());
+
+        pages.ShouldHaveSingleItem().ShouldBe(new KeyValuePair<Type, Type>(typeof(DetailViewModel), typeof(DetailPage)));
     }
 
-    /// <summary>Exceptions during registration leave the destination map unchanged.</summary>
+    /// <summary>A module that throws during registration adds none of its staged mappings.</summary>
     [Fact]
-    public void ThrowingModuleLeavesMapUnchanged()
+    public void AddGeneratedPages_ThrowingModule_PropagatesAndLeavesMapUnchanged()
+    {
+        var pages = CreateHomeMap();
+
+        Should.Throw<InvalidOperationException>(() => pages.AddGeneratedPages<ThrowingPages>());
+
+        pages.ShouldHaveSingleItem().ShouldBe(new KeyValuePair<Type, Type>(typeof(HomeViewModel), typeof(HomePage)));
+    }
+
+    /// <summary>Creates a map containing only the home mapping.</summary>
+    private static PageMap CreateHomeMap()
     {
         var pages = new PageMap();
         pages.Add<HomeViewModel, HomePage>();
-        Assert.Throws<InvalidOperationException>(() => pages.AddGeneratedPages<ThrowingPages>());
-        Assert.Single(pages);
-        Assert.Equal(typeof(HomePage), pages.Resolve(typeof(HomeViewModel)));
+        return pages;
     }
 }
