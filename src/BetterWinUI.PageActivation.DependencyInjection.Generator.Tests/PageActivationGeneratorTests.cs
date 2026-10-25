@@ -11,6 +11,9 @@ namespace BetterWinUI.PageActivation.DependencyInjection.Generator.Tests;
 /// </summary>
 public sealed class PageActivationGeneratorTests
 {
+    private const string ApplicationMustBePartialDiagnostic = "BWPH0001";
+    private const string InvalidApplicationDiagnostic = "BWPH0002";
+    private const string MultipleApplicationsDiagnostic = "BWPH0003";
     private const string MissingXamlProviderDiagnostic = "BWPH0004";
     private const string ActivationConflictDiagnostic = "BWPH0005";
     private const string UnsupportedXamlContractDiagnostic = "BWPH0006";
@@ -166,6 +169,31 @@ public sealed class PageActivationGeneratorTests
              """, "App.cs"));
 
         result.ShouldReportDiagnostic(ActivationConflictDiagnostic);
+    }
+
+    /// <summary>Unsupported hook application declarations are reported.</summary>
+    [Theory]
+    [InlineData("[GeneratePageActivationHook] public sealed class App : Application;", ApplicationMustBePartialDiagnostic)]
+    [InlineData("[GeneratePageActivationHook] public sealed partial class App;", InvalidApplicationDiagnostic)]
+    [InlineData("[GeneratePageActivationHook] public abstract partial class App : Application;", InvalidApplicationDiagnostic)]
+    [InlineData("[GeneratePageActivationHook] public sealed partial class App<T> : Application;", InvalidApplicationDiagnostic)]
+    [InlineData("public sealed class Outer { [GeneratePageActivationHook] public sealed partial class App : Application; }", InvalidApplicationDiagnostic)]
+    [InlineData("[GeneratePageActivationHook] public sealed partial class First : Application; [GeneratePageActivationHook] public sealed partial class Second : Application;", MultipleApplicationsDiagnostic)]
+    public void GeneratePageActivationHook_UnsupportedDeclaration_ReportsDiagnostic(string declaration, string diagnosticId)
+    {
+        var source = $"""
+            using BetterWinUI.PageActivation;
+            using Microsoft.UI.Xaml;
+            namespace Fixture;
+            {declaration}
+            """;
+
+        var result = GeneratorTestHost.Run(
+            "UnsupportedApplication",
+            (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
+            (source, "App.cs"));
+
+        result.ShouldReportDiagnostic(diagnosticId);
     }
 
     /// <summary>A native XAML provider typed as the interface is accepted.</summary>
