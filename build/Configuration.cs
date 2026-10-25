@@ -1,7 +1,7 @@
 using System.ComponentModel;
-using Nuke.Common.Tooling;
+using Fallout.Common.Tooling;
 
-/// <summary>Defines the supported build configurations for NUKE parameters.</summary>
+/// <summary>Defines the supported build configurations for Fallout parameters.</summary>
 [TypeConverter(typeof(TypeConverter<Configuration>))]
 // ReSharper disable once CheckNamespace
 public class Configuration : Enumeration

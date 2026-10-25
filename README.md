@@ -106,7 +106,7 @@ The solution requires Windows and the .NET 10 SDK:
 ./build.ps1 --target Pack
 ```
 
-NUKE restores and builds the solution, runs ordinary and real WinUI tests, and packs the four libraries. See [Testing](docs/testing.md) for individual targets.
+[Fallout](https://github.com/Fallout-build/Fallout) restores and builds the solution, runs ordinary and real WinUI tests, and packs the four libraries. See [Testing](docs/testing.md) for individual targets.
 
 Releases use Conventional Commits, git-cliff semantic versioning, and NuGet.org Trusted Publishing.
 

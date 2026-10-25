@@ -1,15 +1,15 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Xml.Linq;
-using Nuke.Common;
-using Nuke.Common.IO;
-using Nuke.Common.Tooling;
-using Nuke.Common.Tools.DotNet;
-using static Nuke.Common.Tools.DotNet.DotNetTasks;
+using Fallout.Common;
+using Fallout.Common.IO;
+using Fallout.Common.Tooling;
+using Fallout.Common.Tools.DotNet;
+using static Fallout.Common.Tools.DotNet.DotNetTasks;
 
 /// <summary>Builds, tests, and packs BetterWinUI through one local and CI entry point.</summary>
 [SuppressMessage("ReSharper", "InconsistentNaming")]
 // ReSharper disable once CheckNamespace
-sealed class Build : NukeBuild
+sealed class Build : FalloutBuild
 {
     /// <summary>Runs the complete test pipeline by default.</summary>
     public static int Main() => Execute<Build>(build => build.Test);
