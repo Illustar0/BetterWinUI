@@ -63,11 +63,9 @@ internal readonly record struct HookApplication(
     private static bool ConflictsWithActivationMethod(INamedTypeSymbol symbol, ITypeSymbol? factoryType)
     {
         return symbol.GetMembers("UsePageActivation").Any(member =>
-            !member.Locations.Any(static location => location.SourceTree?.FilePath.EndsWith(
-                ".PageActivation.g.cs", StringComparison.OrdinalIgnoreCase) == true) &&
-            (member is not IMethodSymbol method ||
-             (method is { Arity: 0, Parameters: [{ RefKind: RefKind.None }] } &&
-              SymbolEqualityComparer.Default.Equals(method.Parameters[0].Type, factoryType))));
+            member is not IMethodSymbol method ||
+            (method is { Arity: 0, Parameters: [{ RefKind: RefKind.None }] } &&
+             SymbolEqualityComparer.Default.Equals(method.Parameters[0].Type, factoryType)));
     }
 
     private static INamedTypeSymbol? GetFactoryType(Compilation compilation)
