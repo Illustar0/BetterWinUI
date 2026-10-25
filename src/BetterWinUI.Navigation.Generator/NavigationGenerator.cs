@@ -207,7 +207,7 @@ public sealed class NavigationGenerator : IIncrementalGenerator
             foreach (var attribute in page.GetAttributes().Where(attribute =>
                          SymbolEqualityComparer.Default.Equals(attribute.AttributeClass?.OriginalDefinition, pageForAttribute)))
             {
-                var location = attribute.ApplicationSyntaxReference?.GetSyntax(token).GetLocation() ?? page.Locations[0];
+                var location = attribute.ApplicationSyntaxReference!.GetSyntax(token).GetLocation();
                 var viewModel = attribute.AttributeClass!.TypeArguments[0];
                 var moduleValue = attribute.NamedArguments.FirstOrDefault(static pair =>
                     string.Equals(pair.Key, "Module", StringComparison.Ordinal)).Value.Value;

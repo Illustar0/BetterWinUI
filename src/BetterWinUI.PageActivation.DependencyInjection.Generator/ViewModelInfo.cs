@@ -43,16 +43,11 @@ internal readonly struct ViewModelInfo : IEquatable<ViewModelInfo>
     /// <summary>
     /// Creates a view model registration from an attributed type.
     /// </summary>
-    public static ViewModelInfo Create(
-        GeneratorAttributeSyntaxContext context,
-        CancellationToken cancellationToken)
+    public static ViewModelInfo Create(GeneratorAttributeSyntaxContext context)
     {
         var symbol = (INamedTypeSymbol)context.TargetSymbol;
         var attribute = context.Attributes[0];
-        var attributeLocation =
-            attribute.ApplicationSyntaxReference?.GetSyntax(cancellationToken).GetLocation() ??
-            symbol.Locations[0];
-        var location = symbol.GetSourceLocation(attributeLocation);
+        var location = DiagnosticLocation.Create(symbol.Locations[0]);
         var diagnostics = ImmutableArray.CreateBuilder<DiagnosticInfo>();
 
         var validType =

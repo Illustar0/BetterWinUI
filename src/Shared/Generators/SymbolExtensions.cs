@@ -80,18 +80,4 @@ internal static class SymbolExtensions
 
         return symbol.DeclaringSyntaxReferences.Length > 0;
     }
-
-    /// <summary>
-    /// Gets the preferred source location for a generated target.
-    /// </summary>
-    /// <param name="symbol">The target symbol.</param>
-    /// <param name="fallback">The fallback attribute location.</param>
-    /// <returns>The value source location.</returns>
-    public static DiagnosticLocation GetSourceLocation(
-        this ISymbol symbol,
-        Location fallback)
-    {
-        var location = symbol.Locations.FirstOrDefault(static item => item.IsInSource) ?? fallback;
-        return DiagnosticLocation.Create(location);
-    }
 }

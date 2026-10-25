@@ -73,8 +73,7 @@ public sealed class PageActivationGenerator : IIncrementalGenerator
         return context.SyntaxProvider.ForAttributeWithMetadataName(
             MetadataNames.ViewAttribute,
             static (node, _) => node is ClassDeclarationSyntax,
-            static (syntaxContext, cancellationToken) =>
-                ViewInfo.Create(syntaxContext, cancellationToken));
+            static (syntaxContext, _) => ViewInfo.Create(syntaxContext));
     }
 
     private static IncrementalValuesProvider<ViewModelInfo> CreateViewModels(
@@ -83,8 +82,7 @@ public sealed class PageActivationGenerator : IIncrementalGenerator
         return context.SyntaxProvider.ForAttributeWithMetadataName(
             MetadataNames.ViewModelAttribute,
             static (node, _) => node is TypeDeclarationSyntax,
-            static (syntaxContext, cancellationToken) =>
-                ViewModelInfo.Create(syntaxContext, cancellationToken));
+            static (syntaxContext, _) => ViewModelInfo.Create(syntaxContext));
     }
 
 }

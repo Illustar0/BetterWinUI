@@ -43,16 +43,11 @@ internal readonly struct ViewInfo : IEquatable<ViewInfo>
     /// <summary>
     /// Creates a Page registration from an attributed type.
     /// </summary>
-    public static ViewInfo Create(
-        GeneratorAttributeSyntaxContext context,
-        CancellationToken cancellationToken)
+    public static ViewInfo Create(GeneratorAttributeSyntaxContext context)
     {
         var symbol = (INamedTypeSymbol)context.TargetSymbol;
         var attribute = context.Attributes[0];
-        var attributeLocation =
-            attribute.ApplicationSyntaxReference?.GetSyntax(cancellationToken).GetLocation() ??
-            symbol.Locations[0];
-        var location = symbol.GetSourceLocation(attributeLocation);
+        var location = DiagnosticLocation.Create(symbol.Locations[0]);
         var diagnostics = ImmutableArray.CreateBuilder<DiagnosticInfo>();
 
         var pageType =

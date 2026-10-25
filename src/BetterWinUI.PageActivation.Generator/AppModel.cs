@@ -68,7 +68,7 @@ internal readonly struct AppModel : IEquatable<AppModel>
         CancellationToken cancellationToken)
     {
         var symbol = (INamedTypeSymbol)context.TargetSymbol;
-        var location = GetLocation(symbol, context.Attributes[0], cancellationToken);
+        var location = DiagnosticLocation.Create(symbol.Locations[0]);
         var diagnostics = ImmutableArray.CreateBuilder<DiagnosticInfo>();
 
         var applicationType =
@@ -158,17 +158,6 @@ internal readonly struct AppModel : IEquatable<AppModel>
             hashCode = (hashCode * HashCodeValues.Multiplier) ^ IsValid.GetHashCode();
             return (hashCode * HashCodeValues.Multiplier) ^ Diagnostics.Length;
         }
-    }
-
-    private static DiagnosticLocation GetLocation(
-        INamedTypeSymbol symbol,
-        AttributeData attribute,
-        CancellationToken cancellationToken)
-    {
-        var attributeLocation =
-            attribute.ApplicationSyntaxReference?.GetSyntax(cancellationToken).GetLocation() ??
-            symbol.Locations[0];
-        return symbol.GetSourceLocation(attributeLocation);
     }
 
     private static INamedTypeSymbol? GetFactoryType(Compilation compilation)
