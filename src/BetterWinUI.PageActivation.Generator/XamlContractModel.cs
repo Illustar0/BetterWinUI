@@ -35,10 +35,15 @@ internal readonly struct XamlContractModel : IEquatable<XamlContractModel>
     /// <summary>Gets the XAML type interface members.</summary>
     public ImmutableArray<InterfaceMemberModel> XamlTypeMembers { get; }
 
+    /// <summary>Gets the contract of a compilation that does not reference both XAML interfaces.</summary>
+    public static XamlContractModel Unavailable { get; } = new(
+        string.Empty,
+        string.Empty,
+        ImmutableArray<InterfaceMemberModel>.Empty,
+        ImmutableArray<InterfaceMemberModel>.Empty);
+
     /// <summary>Gets a value indicating whether both XAML interfaces are available.</summary>
-    public bool IsAvailable =>
-        !string.IsNullOrEmpty(MetadataProviderInterfaceName) &&
-        !string.IsNullOrEmpty(XamlTypeInterfaceName);
+    public bool IsAvailable => MetadataProviderInterfaceName.Length > 0;
 
     /// <summary>Gets a value indicating whether all required interception methods are unique.</summary>
     public bool HasRequiredInterceptors =>
@@ -60,7 +65,7 @@ internal readonly struct XamlContractModel : IEquatable<XamlContractModel>
             compilation.GetTypeByMetadataName(MetadataNames.XamlMetadataProvider);
         var xamlType =
             compilation.GetTypeByMetadataName(MetadataNames.XamlType);
-        if (metadataProvider is null || xamlType is null) return default;
+        if (metadataProvider is null || xamlType is null) return Unavailable;
 
         return new XamlContractModel(
             metadataProvider.ToGlobalDisplayString(),
@@ -95,13 +100,9 @@ internal readonly struct XamlContractModel : IEquatable<XamlContractModel>
     {
         unchecked
         {
-            var hashCode = MetadataProviderInterfaceName is null
-                ? 0
-                : StringComparer.Ordinal.GetHashCode(MetadataProviderInterfaceName);
+            var hashCode = StringComparer.Ordinal.GetHashCode(MetadataProviderInterfaceName);
             hashCode = (hashCode * HashCodeValues.Multiplier) ^
-                       (XamlTypeInterfaceName is null
-                           ? 0
-                           : StringComparer.Ordinal.GetHashCode(XamlTypeInterfaceName));
+                       StringComparer.Ordinal.GetHashCode(XamlTypeInterfaceName);
             hashCode = (hashCode * HashCodeValues.Multiplier) ^
                        MetadataProviderMembers.Length;
             return (hashCode * HashCodeValues.Multiplier) ^ XamlTypeMembers.Length;

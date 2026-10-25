@@ -46,6 +46,35 @@ public sealed class PageActivationGeneratorTests
             static output => Assert.Equal(IncrementalStepRunReason.Cached, output.Reason));
     }
 
+    /// <summary>A view model library without WinUI references survives repeated incremental runs.</summary>
+    [Fact]
+    public void LibraryWithoutWinUiSurvivesIncrementalEdits()
+    {
+        var compilation = GeneratorTestHost.CreateCompilation(
+            "ViewModelLibrary",
+            [(
+                """
+                using BetterWinUI.PageActivation.DependencyInjection;
+                using Microsoft.Extensions.DependencyInjection;
+                namespace Fixture;
+                [ViewModel(ServiceLifetime.Transient)] public sealed class MainViewModel;
+                """,
+                "MainViewModel.cs")]);
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(
+            [new PageActivationGenerator().AsSourceGenerator(),
+                new BetterWinUI.PageActivation.Generator.PageActivationGenerator().AsSourceGenerator()],
+            parseOptions: (CSharpParseOptions)compilation.SyntaxTrees.First().Options);
+
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out _, TestContext.Current.CancellationToken);
+        var edited = compilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(
+            "namespace Fixture; internal sealed class Unrelated;",
+            (CSharpParseOptions)compilation.SyntaxTrees.First().Options,
+            cancellationToken: TestContext.Current.CancellationToken));
+        driver = driver.RunGeneratorsAndUpdateCompilation(edited, out var output, out _, TestContext.Current.CancellationToken);
+
+        new GenerationResult((CSharpCompilation)output, driver.GetRunResult()).AssertNoErrors();
+    }
+
     /// <summary>Escaped application names compile in both XAML generation passes.</summary>
     [Fact]
     public void EscapedApplicationNameCompiles()
