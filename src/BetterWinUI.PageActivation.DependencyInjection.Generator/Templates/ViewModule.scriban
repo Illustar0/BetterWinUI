@@ -6,10 +6,12 @@
 
 namespace {{ ModuleNamespace }}
 {
-    /// <summary>Registers generated views from {{ AssemblyName }}.</summary>
+    /// <summary>Registers the Pages and ViewModels of {{ AssemblyName }} that are marked for dependency injection.</summary>
+    /// <remarks>The generated AddGeneratedPageServices method calls this module; application code does not.</remarks>
     public static class {{ ModuleName }}
     {
-        /// <summary>Registers Pages and view models without replacing explicit registrations.</summary>
+        /// <summary>Adds a service registration for each marked Page and ViewModel that is not already registered.</summary>
+        /// <param name="services">The service collection that receives the registrations.</param>
         public static void Register(
             global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)
         {

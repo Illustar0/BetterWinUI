@@ -2,27 +2,17 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace BetterWinUI.PageActivation.DependencyInjection;
 
-/// <summary>
-/// Adds a generated Microsoft DI registration for a WinUI Page.
-/// </summary>
+/// <summary>Marks a WinUI Page for a generated dependency injection registration.</summary>
+/// <param name="lifetime">The lifetime of the generated registration.</param>
 /// <remarks>
-/// This attribute is optional registration syntax sugar. It does not associate the
-/// Page with a view model. Omit it to register the Page directly with the DI container.
+/// The attribute is optional; registering the Page directly with the service collection has the same effect. It
+/// does not associate the Page with a ViewModel.
 /// </remarks>
-/// <param name="lifetime">
-/// The generated Microsoft DI registration lifetime. The default is
-/// <see cref="ServiceLifetime.Transient"/>.
-/// </param>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 public sealed class ViewAttribute(
     ServiceLifetime lifetime = ServiceLifetime.Transient) : Attribute
 {
-    /// <summary>
-    /// Gets the generated Microsoft DI registration lifetime.
-    /// </summary>
-    /// <remarks>
-    /// <see cref="ServiceLifetime.Scoped"/> is reserved for a future navigation-scope
-    /// implementation and is rejected by the generator today.
-    /// </remarks>
+    /// <summary>Gets the lifetime of the generated registration.</summary>
+    /// <value>The service lifetime. The default is <see cref="ServiceLifetime.Transient" />.</value>
     public ServiceLifetime Lifetime { get; } = lifetime;
 }

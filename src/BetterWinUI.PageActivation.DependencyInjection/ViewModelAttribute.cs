@@ -2,23 +2,15 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace BetterWinUI.PageActivation.DependencyInjection;
 
-/// <summary>
-/// Adds a generated Microsoft DI registration for a concrete view model.
-/// </summary>
+/// <summary>Marks a ViewModel class for a generated dependency injection registration.</summary>
+/// <param name="lifetime">The lifetime of the generated registration.</param>
 /// <remarks>
-/// This attribute is optional registration syntax sugar. It does not associate the
-/// view model with a View. Omit it to register the view model directly with the DI container.
+/// The attribute is optional; registering the ViewModel directly with the service collection has the same effect.
+/// It does not associate the ViewModel with a Page.
 /// </remarks>
-/// <param name="lifetime">The generated Microsoft DI registration lifetime.</param>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 public sealed class ViewModelAttribute(ServiceLifetime lifetime) : Attribute
 {
-    /// <summary>
-    /// Gets the generated Microsoft DI registration lifetime.
-    /// </summary>
-    /// <remarks>
-    /// <see cref="ServiceLifetime.Scoped"/> is reserved for a future navigation-scope
-    /// implementation and is rejected by the generator today.
-    /// </remarks>
+    /// <summary>Gets the lifetime of the generated registration.</summary>
     public ServiceLifetime Lifetime { get; } = lifetime;
 }

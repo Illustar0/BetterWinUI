@@ -2,11 +2,12 @@
 #nullable enable
 namespace {{ Namespace }}
 {
+    // The XAML markup pass compiles the application before XamlTypeInfo.g.cs exists. This stub keeps calls to
+    // UsePageActivation compiling in that pass; the final compilation receives the native adapter instead.
     partial class @{{ AppName }} :
         global::BetterWinUI.PageActivation.IPageActivationHook<global::Microsoft.UI.Xaml.Controls.Page>
     {
-        /// <summary>Installs a Page factory once native XAML metadata is available.</summary>
-        /// <param name="activate">The application Page factory.</param>
+        /// <inheritdoc />
         public void UsePageActivation(global::System.Func<global::System.Type, global::Microsoft.UI.Xaml.Controls.Page> activate) =>
             throw new global::System.InvalidOperationException("WinUI XAML metadata has not been generated yet.");
     }

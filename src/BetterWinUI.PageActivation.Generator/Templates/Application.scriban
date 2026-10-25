@@ -3,6 +3,9 @@
 
 namespace {{ Namespace }}
 {
+    // The XAML compiler implements the metadata provider interface on this class with public methods. The
+    // explicit implementations below take precedence in the interface mapping, so every metadata lookup made by
+    // the XAML runtime goes through the activation provider, which forwards to the compiler's native provider.
     partial class @{{ AppName }} :
         {{ MetadataProviderInterfaceName }},
         global::BetterWinUI.PageActivation.IPageActivationHook<global::Microsoft.UI.Xaml.Controls.Page>
@@ -10,11 +13,7 @@ namespace {{ Namespace }}
         private global::BetterWinUI.PageActivation.Generated.PageActivationXamlMetadataProvider_{{ Suffix }}?
             __pageActivationProvider;
 
-        /// <summary>Installs the application factory used for subsequent Page activations.</summary>
-        /// <param name="activate">Receives the requested Page type and returns a compatible, non-null Page.</param>
-        /// <remarks>Register once on the XAML thread before navigating. Existing cached Pages are unaffected.</remarks>
-        /// <exception cref="global::System.ArgumentNullException">The factory is null.</exception>
-        /// <exception cref="global::System.InvalidOperationException">A hook is already installed.</exception>
+        /// <inheritdoc />
         public void UsePageActivation(global::System.Func<global::System.Type, global::Microsoft.UI.Xaml.Controls.Page> activate)
         {
             global::System.ArgumentNullException.ThrowIfNull(activate);
@@ -30,6 +29,7 @@ namespace {{ Namespace }}
                 return current;
             }
 
+            // If concurrent calls race, keep the first provider so the installed factory and the Page type cache are shared.
             var created =
                 new global::BetterWinUI.PageActivation.Generated.PageActivationXamlMetadataProvider_{{ Suffix }}(
                     this.{{ ProviderPropertyName }});
@@ -101,6 +101,7 @@ namespace BetterWinUI.PageActivation.Generated
                 return xamlType!;
             }
 
+            // Only Page types are wrapped. The wrapper is cached so each Page type keeps one XAML type identity.
             return pageTypes.GetOrAdd(
                 pageType,
                 static (_, value) =>
@@ -138,6 +139,7 @@ namespace BetterWinUI.PageActivation.Generated
 
         internal object Activate({{ XamlTypeInterfaceName }} xamlType)
         {
+            // Until a factory is installed, Pages keep their native XAML activation.
             var activate = global::System.Threading.Volatile.Read(ref factory);
             if (activate is null)
                 return xamlType.ActivateInstance();
@@ -178,6 +180,8 @@ namespace BetterWinUI.PageActivation.Generated
             typeof(global::Microsoft.UI.Xaml.Controls.Page).IsAssignableFrom(type);
     }
 
+    // CsWinRT does not generate vtables for this managed wrapper, so the attributes declare the IXamlType vtable
+    // it exposes when crossing the WinRT boundary, including under NativeAOT.
     [global::WinRT.WinRTRuntimeClassName("Microsoft.UI.Xaml.Markup.IXamlType")]
     [global::WinRT.WinRTExposedType(
         typeof(PageActivationXamlTypeWinRTTypeDetails_{{ Suffix }}))]
