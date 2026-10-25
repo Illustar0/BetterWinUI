@@ -16,10 +16,12 @@ public sealed class PageActivationGenerator : IIncrementalGenerator
         var apps = context.SyntaxProvider.ForAttributeWithMetadataName(
             MetadataNames.GeneratePageActivationHookAttribute,
             static (node, _) => node is ClassDeclarationSyntax,
-            static (input, token) => AppModel.Create(input, token));
-        var contract = context.CompilationProvider.Select(
-            static (compilation, token) => XamlContractModel.Create(compilation, token));
-        context.RegisterSourceOutput(apps.Collect().Combine(contract),
+            static (input, token) => AppModel.Create(input, token)).Collect();
+        var contract = apps.Combine(context.CompilationProvider).Select(
+            static (input, token) => input.Left.IsEmpty
+                ? XamlContractModel.Unavailable
+                : XamlContractModel.Create(input.Right, token));
+        context.RegisterSourceOutput(apps.Combine(contract),
             static (output, input) => Generate(output, input.Left, input.Right));
     }
 
