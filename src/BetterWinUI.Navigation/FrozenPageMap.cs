@@ -7,7 +7,7 @@ namespace BetterWinUI.Navigation;
 /// <summary>
 /// Represents an immutable snapshot of ViewModel-to-Page mappings.
 /// </summary>
-public sealed class FrozenPageMap : IReadOnlyDictionary<Type, Type>
+public sealed class FrozenPageMap : PageResolver, IReadOnlyDictionary<Type, Type>
 {
     private readonly FrozenDictionary<Type, Type> _pages;
 
@@ -61,4 +61,7 @@ public sealed class FrozenPageMap : IReadOnlyDictionary<Type, Type>
             : throw new KeyNotFoundException(
                 $"No Page is mapped for ViewModel '{viewModelType}'.");
     }
+
+    /// <inheritdoc />
+    private protected override Type ResolveCore(Type viewModelType, object? parameter) => Resolve(viewModelType);
 }

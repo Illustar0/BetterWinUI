@@ -6,7 +6,7 @@ namespace BetterWinUI.Navigation;
 
 /// <summary>Stores mutable ViewModel-to-Page mappings for one or more navigators.</summary>
 /// <remarks>This collection is not thread-safe. Coordinate changes with navigation on the owning UI thread.</remarks>
-public sealed class PageMap : IReadOnlyDictionary<Type, Type>
+public sealed class PageMap : PageResolver, IReadOnlyDictionary<Type, Type>
 {
     private Dictionary<Type, Type> _pages = [];
 
@@ -44,8 +44,7 @@ public sealed class PageMap : IReadOnlyDictionary<Type, Type>
     /// <typeparam name="TPage">The concrete Page type.</typeparam>
     public void Add<TViewModel, TPage>() where TViewModel : class where TPage : Page
     {
-        ValidatePage(typeof(TPage));
-        _pages.Add(typeof(TViewModel), typeof(TPage));
+        _pages.Add(typeof(TViewModel), EnsurePage(typeof(TPage)));
     }
 
     /// <summary>Adds a mapping only if the ViewModel is absent.</summary>
@@ -54,8 +53,7 @@ public sealed class PageMap : IReadOnlyDictionary<Type, Type>
     /// <returns>Whether the mapping was added.</returns>
     public bool TryAdd<TViewModel, TPage>() where TViewModel : class where TPage : Page
     {
-        ValidatePage(typeof(TPage));
-        return _pages.TryAdd(typeof(TViewModel), typeof(TPage));
+        return _pages.TryAdd(typeof(TViewModel), EnsurePage(typeof(TPage)));
     }
 
     /// <summary>Adds or replaces a mapping.</summary>
@@ -63,8 +61,7 @@ public sealed class PageMap : IReadOnlyDictionary<Type, Type>
     /// <typeparam name="TPage">The concrete Page type.</typeparam>
     public void Set<TViewModel, TPage>() where TViewModel : class where TPage : Page
     {
-        ValidatePage(typeof(TPage));
-        _pages[typeof(TViewModel)] = typeof(TPage);
+        _pages[typeof(TViewModel)] = EnsurePage(typeof(TPage));
     }
 
     /// <summary>Removes a ViewModel mapping.</summary>
@@ -104,10 +101,6 @@ public sealed class PageMap : IReadOnlyDictionary<Type, Type>
             .ToDictionary(static mapping => mapping.Key, static mapping => mapping.Value);
     }
 
-    /// <summary>Rejects the constrained Page arguments that cannot be activated.</summary>
-    private static void ValidatePage(Type pageType)
-    {
-        if (pageType == typeof(Page) || pageType.IsAbstract)
-            throw new ArgumentException($"Type '{pageType}' must be a concrete, closed Page subclass.", nameof(pageType));
-    }
+    /// <inheritdoc />
+    private protected override Type ResolveCore(Type viewModelType, object? parameter) => Resolve(viewModelType);
 }

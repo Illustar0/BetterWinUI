@@ -41,16 +41,16 @@ The Page receives the original parameter in `NavigationEventArgs.Parameter`, not
 
 ## Presentation policy
 
-Each navigator can use a separate mutable map, a shared map, an explicit frozen snapshot (`new FrameNavigator(pages.Freeze())`), or an application resolver:
+A navigator takes one `PageResolver`: a separate mutable map, a shared map, an explicit frozen snapshot (`new FrameNavigator(pages.Freeze())`), or an application policy:
 
 ```csharp
-var navigator = new FrameNavigator((viewModelType, parameter) =>
+var navigator = new FrameNavigator(PageResolver.Create((viewModelType, parameter) =>
     viewModelType == typeof(DetailViewModel) && layout.IsCompact
         ? typeof(CompactDetailPage)
-        : pages.Resolve(viewModelType));
+        : pages.Resolve(viewModelType)));
 ```
 
-Maps and resolvers select Page types; Page construction remains native XAML or PageActivation/DI behavior. They do not automatically bind a ViewModel instance.
+The resolver checks its result before native navigation. Resolvers select Page types; Page construction remains native XAML or PageActivation/DI behavior. They do not automatically bind a ViewModel instance.
 
 ## Attachment and history
 

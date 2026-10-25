@@ -1,4 +1,3 @@
-using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Animation;
 
 namespace BetterWinUI.Navigation.Frame;
@@ -9,35 +8,17 @@ namespace BetterWinUI.Navigation.Frame;
 public sealed class FrameNavigator
 {
     private Microsoft.UI.Xaml.Controls.Frame? _frame;
-    private readonly Func<Type, object?, Type> _resolvePage;
+    private readonly PageResolver _pages;
 
-    /// <summary>
-    /// Creates a navigator that resolves Pages from the supplied mutable map.
-    /// Subsequent changes to the map affect future navigation.
-    /// </summary>
-    /// <param name="pages">The shared or navigator-specific Page map.</param>
-    public FrameNavigator(PageMap pages)
+    /// <summary>Creates a navigator that resolves Pages through the supplied resolver.</summary>
+    /// <param name="pages">
+    /// A shared or navigator-specific <see cref="PageMap" />, whose later changes affect future navigation;
+    /// a <see cref="FrozenPageMap" /> snapshot; or an application policy from <see cref="PageResolver.Create" />.
+    /// </param>
+    public FrameNavigator(PageResolver pages)
     {
         ArgumentNullException.ThrowIfNull(pages);
-        _resolvePage = (viewModelType, _) => pages.Resolve(viewModelType);
-    }
-
-    /// <summary>
-    /// Creates a navigator that resolves Pages from an immutable map snapshot.
-    /// </summary>
-    /// <param name="pages">The frozen Page map.</param>
-    public FrameNavigator(FrozenPageMap pages)
-    {
-        ArgumentNullException.ThrowIfNull(pages);
-        _resolvePage = (viewModelType, _) => pages.Resolve(viewModelType);
-    }
-
-    /// <summary>Creates a navigator with an application-defined Page selection policy.</summary>
-    /// <param name="resolvePage">Selects a Page from the ViewModel type and original parameter.</param>
-    public FrameNavigator(Func<Type, object?, Type> resolvePage)
-    {
-        ArgumentNullException.ThrowIfNull(resolvePage);
-        _resolvePage = (viewModelType, parameter) => ValidatePage(resolvePage(viewModelType, parameter));
+        _pages = pages;
     }
 
     /// <summary>Gets the attached Frame, or null when detached.</summary>
@@ -113,7 +94,7 @@ public sealed class FrameNavigator
     {
         ArgumentNullException.ThrowIfNull(request);
         var frame = GetAttachedFrame();
-        var pageType = _resolvePage(request.ViewModelType, request.Parameter);
+        var pageType = _pages.Resolve(request.ViewModelType, request.Parameter);
         if (!ReferenceEquals(frame, _frame))
             throw new InvalidOperationException("The Frame attachment changed during Page resolution.");
         return request.TransitionInfo is null
@@ -156,16 +137,6 @@ public sealed class FrameNavigator
         if (!frame.CanGoBack)
             throw new InvalidOperationException(
                 "The attached Frame has no back navigation entry.");
-    }
-
-    /// <summary>Validates Page types returned by an application resolver.</summary>
-    private static Type ValidatePage(Type pageType)
-    {
-        ArgumentNullException.ThrowIfNull(pageType);
-        if (pageType == typeof(Page) || !typeof(Page).IsAssignableFrom(pageType) ||
-            pageType.IsAbstract || pageType.ContainsGenericParameters)
-            throw new ArgumentException($"Type '{pageType}' must be a concrete, closed Page subclass.", nameof(pageType));
-        return pageType;
     }
 
     /// <summary>Checks access to the attached Frame's UI thread.</summary>

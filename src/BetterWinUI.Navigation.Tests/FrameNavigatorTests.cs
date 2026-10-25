@@ -39,11 +39,11 @@ public sealed class FrameNavigatorTests
     public void Navigate_DetachedNavigator_ThrowsWithoutInvokingResolver()
     {
         var resolverCalls = 0;
-        var navigator = new FrameNavigator((_, _) =>
+        var navigator = new FrameNavigator(PageResolver.Create((_, _) =>
         {
             resolverCalls++;
             return typeof(HomePage);
-        });
+        }));
 
         Should.Throw<InvalidOperationException>(() => navigator.Navigate<HomeViewModel>());
 

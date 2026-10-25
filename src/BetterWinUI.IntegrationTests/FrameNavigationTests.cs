@@ -358,11 +358,11 @@ public sealed class FrameNavigationTests
     public void Navigate_ResolverDetachesFrame_ThrowsWithoutNavigating()
     {
         IDisposable? lease = null;
-        var navigator = new FrameNavigator((_, _) =>
+        var navigator = new FrameNavigator(PageResolver.Create((_, _) =>
         {
             lease!.Dispose();
             return typeof(FirstPage);
-        });
+        }));
         var frame = new Frame();
         lease = navigator.Attach(frame);
 
@@ -398,8 +398,9 @@ public sealed class FrameNavigationTests
     /// <summary>Attaches a new Frame to a navigator backed by a Page map.</summary>
     private static AttachedNavigator Attach(PageMap pages) => Attach(new FrameNavigator(pages));
 
-    /// <summary>Attaches a new Frame to a navigator backed by an application resolver.</summary>
-    private static AttachedNavigator Attach(Func<Type, object?, Type> resolvePage) => Attach(new FrameNavigator(resolvePage));
+    /// <summary>Attaches a new Frame to a navigator backed by an application policy.</summary>
+    private static AttachedNavigator Attach(Func<Type, object?, Type> resolvePage) =>
+        Attach(new FrameNavigator(PageResolver.Create(resolvePage)));
 
     /// <summary>Attaches a new Frame to a navigator.</summary>
     private static AttachedNavigator Attach(FrameNavigator navigator)

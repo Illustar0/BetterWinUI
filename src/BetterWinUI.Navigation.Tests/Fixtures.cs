@@ -31,6 +31,11 @@ public sealed partial class DesktopPages;
 public sealed partial class CompactPages;
 /// <summary>Supplies an invalid abstract Page type.</summary>
 public abstract partial class AbstractPage : Page;
+#pragma warning disable S2326 // The type parameter only makes the definition open.
+/// <summary>Supplies an invalid open generic Page type definition.</summary>
+/// <typeparam name="T">The unused type argument.</typeparam>
+public sealed partial class GenericPage<T> : Page;
+#pragma warning restore S2326
 /// <summary>Supplies a Page without a parameterless constructor.</summary>
 public sealed partial class ConstructorInjectedPage(HomeViewModel viewModel) : Page
 {

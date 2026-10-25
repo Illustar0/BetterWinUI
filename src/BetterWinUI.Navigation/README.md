@@ -23,6 +23,19 @@ FrozenPageMap snapshot = pages.Freeze();
 
 Both maps implement `IReadOnlyDictionary<Type, Type>`, supporting indexers, `Keys`, `Values`, `ContainsKey`, `TryGetValue(Type, out Type?)`, enumeration, and LINQ. The read-only interface does not make `PageMap` immutable; use `Freeze()` when an independent immutable snapshot is required.
 
+## Page resolvers
+
+`PageResolver` is the policy a navigator uses to choose the Page type for a ViewModel target and its original parameter. Both maps are resolvers that ignore the parameter. `PageResolver.Create` adapts an application-defined policy:
+
+```csharp
+PageResolver resolver = PageResolver.Create((viewModelType, parameter) =>
+    viewModelType == typeof(DetailViewModel) && layout.IsCompact
+        ? typeof(CompactDetailPage)
+        : pages.Resolve(viewModelType));
+```
+
+`Resolve(Type, object?)` checks every result, so a policy that returns null, a non-Page type, the `Page` base type, or an abstract or open generic Page throws `ArgumentException`. Policy exceptions propagate unchanged. Resolvers select Page types only; they do not construct Pages or bind ViewModel instances.
+
 ## Generated default group
 
 ```csharp
