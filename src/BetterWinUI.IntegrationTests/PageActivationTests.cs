@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Markup;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
+using Shouldly;
 
 namespace BetterWinUI.IntegrationTests;
 
@@ -11,118 +12,205 @@ namespace BetterWinUI.IntegrationTests;
 [TestClass]
 public sealed class PageActivationTests
 {
-    /// <summary>Generated scoped registrations follow application-owned scope identity and disposal.</summary>
-    [UITestMethod]
-    public void ScopedRegistrationsFollowApplicationOwnedScopes()
-    {
-        var services = ((App)Application.Current).Services;
-        using var secondScope = services.CreateScope();
-        ScopedDependency dependency;
-        using (var firstScope = services.CreateScope())
-        {
-            var first = firstScope.ServiceProvider.GetRequiredService<ScopedPage>();
-            dependency = first.Dependency;
-            Assert.AreSame(first, firstScope.ServiceProvider.GetRequiredService<ScopedPage>());
-            Assert.AreSame(dependency, firstScope.ServiceProvider.GetRequiredService<ScopedDependency>());
-            var second = secondScope.ServiceProvider.GetRequiredService<ScopedPage>();
-            Assert.AreNotSame(first, second);
-            Assert.AreNotSame(dependency, second.Dependency);
-            Assert.IsFalse(dependency.IsDisposed);
-        }
+    private const string ClockKey = "clock";
 
-        Assert.IsTrue(dependency.IsDisposed);
-        Assert.IsFalse(secondScope.ServiceProvider.GetRequiredService<ScopedDependency>().IsDisposed);
+    private static App Current => (App)Application.Current;
+
+    /// <summary>A scoped Page is reused within one application-owned scope.</summary>
+    [UITestMethod]
+    public void GetRequiredService_ScopedPageInSameScope_ReturnsSameInstance()
+    {
+        using var scope = Current.Services.CreateScope();
+        var first = scope.ServiceProvider.GetRequiredService<ScopedPage>();
+
+        var second = scope.ServiceProvider.GetRequiredService<ScopedPage>();
+
+        second.ShouldBeSameAs(first);
     }
 
-    /// <summary>Generated registration makes an attributed record resolvable without manual setup.</summary>
+    /// <summary>A scoped Page receives the dependency owned by its scope.</summary>
     [UITestMethod]
-    public void RecordViewModelCanBeResolved()
+    public void GetRequiredService_ScopedPage_UsesScopeDependency()
     {
-        var services = ((App)Application.Current).Services;
-        Assert.AreNotSame(services.GetRequiredService<RecordViewModel>(), services.GetRequiredService<RecordViewModel>());
+        using var scope = Current.Services.CreateScope();
+
+        var page = scope.ServiceProvider.GetRequiredService<ScopedPage>();
+
+        page.Dependency.ShouldBeSameAs(scope.ServiceProvider.GetRequiredService<ScopedDependency>());
     }
 
-    /// <summary>Resolves constructor and keyed dependencies without assigning DataContext.</summary>
+    /// <summary>Different scopes create different scoped Pages and dependencies.</summary>
     [UITestMethod]
-    public void FrameActivatesPageThroughDependencyInjection()
+    public void GetRequiredService_ScopedPageInDifferentScopes_ReturnsDistinctInstances()
+    {
+        using var firstScope = Current.Services.CreateScope();
+        using var secondScope = Current.Services.CreateScope();
+        var first = firstScope.ServiceProvider.GetRequiredService<ScopedPage>();
+
+        var second = secondScope.ServiceProvider.GetRequiredService<ScopedPage>();
+
+        second.ShouldSatisfyAllConditions(
+            () => second.ShouldNotBeSameAs(first),
+            () => second.Dependency.ShouldNotBeSameAs(first.Dependency));
+    }
+
+    /// <summary>Disposing a scope disposes its scoped dependency.</summary>
+    [UITestMethod]
+    public void DisposeScope_ScopedDependency_DisposesDependency()
+    {
+        var scope = Current.Services.CreateScope();
+        var dependency = scope.ServiceProvider.GetRequiredService<ScopedPage>().Dependency;
+
+        scope.Dispose();
+
+        dependency.IsDisposed.ShouldBeTrue();
+    }
+
+    /// <summary>Disposing one scope leaves another scope's dependency alive.</summary>
+    [UITestMethod]
+    public void DisposeScope_OtherScopeDependency_RemainsUndisposed()
+    {
+        using var survivingScope = Current.Services.CreateScope();
+        var surviving = survivingScope.ServiceProvider.GetRequiredService<ScopedDependency>();
+        var disposedScope = Current.Services.CreateScope();
+        disposedScope.ServiceProvider.GetRequiredService<ScopedDependency>();
+
+        disposedScope.Dispose();
+
+        surviving.IsDisposed.ShouldBeFalse();
+    }
+
+    /// <summary>An attributed transient record is resolvable without manual registration.</summary>
+    [UITestMethod]
+    public void GetRequiredService_TransientRecordViewModel_ReturnsDistinctInstances()
+    {
+        var first = Current.Services.GetRequiredService<RecordViewModel>();
+
+        var second = Current.Services.GetRequiredService<RecordViewModel>();
+
+        second.ShouldNotBeSameAs(first);
+    }
+
+    /// <summary>Frame navigation resolves constructor and keyed dependencies without assigning DataContext.</summary>
+    [UITestMethod]
+    public void Navigate_InjectedPage_ResolvesConstructorAndKeyedDependencies()
     {
         var frame = new Frame();
-        Assert.IsTrue(frame.Navigate(typeof(FirstPage)));
-        var page = (FirstPage)frame.Content;
-        Assert.IsNotNull(page.ViewModel);
-        Assert.AreSame(((App)Application.Current).Services.GetRequiredKeyedService<TestClock>("clock"), page.Clock);
-        Assert.IsNull(page.DataContext);
+
+        var navigated = frame.Navigate(typeof(FirstPage));
+
+        var page = frame.Content.ShouldBeOfType<FirstPage>();
+        page.ShouldSatisfyAllConditions(
+            () => navigated.ShouldBeTrue(),
+            () => page.ViewModel.ShouldNotBeNull(),
+            () => page.Clock.ShouldBeSameAs(Current.Services.GetRequiredKeyedService<TestClock>(ClockKey)),
+            () => page.DataContext.ShouldBeNull());
     }
 
-    /// <summary>Generated transient registrations produce distinct Pages and ViewModels.</summary>
+    /// <summary>Transient registrations create a new Page and ViewModel for each navigation.</summary>
     [UITestMethod]
-    public void TransientPagesAndViewModelsAreDistinct()
+    public void Navigate_TransientPageInTwoFrames_CreatesDistinctPagesAndViewModels()
     {
         var first = new Frame();
         var second = new Frame();
+
         first.Navigate(typeof(FirstPage));
         second.Navigate(typeof(FirstPage));
-        Assert.AreNotSame(first.Content, second.Content);
-        Assert.AreNotSame(((FirstPage)first.Content).ViewModel, ((FirstPage)second.Content).ViewModel);
+
+        var firstPage = first.Content.ShouldBeOfType<FirstPage>();
+        var secondPage = second.Content.ShouldBeOfType<FirstPage>();
+        secondPage.ShouldSatisfyAllConditions(
+            () => secondPage.ShouldNotBeSameAs(firstPage),
+            () => secondPage.ViewModel.ShouldNotBeSameAs(firstPage.ViewModel));
     }
 
-    /// <summary>Generated singleton lifetimes remain controlled by DI.</summary>
+    /// <summary>Singleton registrations reuse the Page and its ViewModel.</summary>
     [UITestMethod]
-    public void SingletonRegistrationReusesPageAndViewModel()
+    public void GetRequiredService_SingletonPage_ReusesPageAndViewModel()
     {
-        var services = ((App)Application.Current).Services;
-        var first = services.GetRequiredService<SingletonPage>();
-        var second = services.GetRequiredService<SingletonPage>();
-        Assert.AreSame(first, second);
-        Assert.AreSame(services.GetRequiredService<SingletonViewModel>(), first.ViewModel);
-        Assert.IsNull(first.DataContext);
+        var first = Current.Services.GetRequiredService<SingletonPage>();
+
+        var second = Current.Services.GetRequiredService<SingletonPage>();
+
+        second.ShouldSatisfyAllConditions(
+            () => second.ShouldBeSameAs(first),
+            () => second.ViewModel.ShouldBeSameAs(Current.Services.GetRequiredService<SingletonViewModel>()),
+            () => second.DataContext.ShouldBeNull());
     }
 
-    /// <summary>Explicit ViewModel registration overrides the generated transient default.</summary>
+    /// <summary>An explicit ViewModel registration overrides the generated transient default.</summary>
     [UITestMethod]
-    public void ExplicitRegistrationTakesPrecedence()
+    public void Navigate_ExplicitViewModelRegistration_UsesExplicitInstance()
     {
         var frame = new Frame();
+
         frame.Navigate(typeof(OverridePage));
-        Assert.AreSame(((App)Application.Current).Services.GetRequiredService<OverrideViewModel>(),
-            ((OverridePage)frame.Content).ViewModel);
+
+        frame.Content.ShouldBeOfType<OverridePage>().ViewModel
+            .ShouldBeSameAs(Current.Services.GetRequiredService<OverrideViewModel>());
     }
 
     /// <summary>A Page registered manually needs no View attribute.</summary>
     [UITestMethod]
-    public void ManuallyRegisteredPageCanNavigate()
+    public void Navigate_ManuallyRegisteredPage_ActivatesPage()
     {
         var frame = new Frame();
-        Assert.IsTrue(frame.Navigate(typeof(ManualPage)));
-        Assert.IsInstanceOfType<ManualPage>(frame.Content);
+
+        var navigated = frame.Navigate(typeof(ManualPage));
+
+        frame.ShouldSatisfyAllConditions(
+            () => navigated.ShouldBeTrue(),
+            () => frame.Content.ShouldBeOfType<ManualPage>());
     }
 
     /// <summary>A missing registration fails even when the Page has a native default constructor.</summary>
     [UITestMethod]
-    public void UnregisteredPageDoesNotFallBackToNativeActivation()
+    public void Navigate_UnregisteredPage_ThrowsWithoutNativeFallback()
     {
         var frame = new Frame();
-        Assert.ThrowsExactly<InvalidOperationException>(() => frame.Navigate(typeof(UnregisteredPage)));
-        Assert.IsNull(frame.Content);
+
+        Should.Throw<InvalidOperationException>(() => frame.Navigate(typeof(UnregisteredPage)));
+
+        frame.Content.ShouldBeNull();
     }
 
-    /// <summary>Rejects repeated initialization without corrupting the active provider.</summary>
+    /// <summary>The provider cannot be installed twice.</summary>
     [UITestMethod]
-    public void ActivationCanOnlyBeInitializedOnce()
+    public void UsePageActivation_AlreadyInstalled_ThrowsInvalidOperationException() =>
+        Should.Throw<InvalidOperationException>(() => Current.UsePageActivation(Current.Services));
+
+    /// <summary>A rejected reinstallation leaves the active provider working.</summary>
+    [UITestMethod]
+    public void Navigate_AfterRejectedReinstallation_UsesActiveProvider()
     {
-        var app = (App)Application.Current;
-        Assert.ThrowsExactly<InvalidOperationException>(() => app.UsePageActivation(app.Services));
+        Should.Throw<InvalidOperationException>(() => Current.UsePageActivation(Current.Services));
         var frame = new Frame();
-        Assert.IsTrue(frame.Navigate(typeof(FirstPage)));
+
+        var navigated = frame.Navigate(typeof(FirstPage));
+
+        navigated.ShouldBeTrue();
     }
 
-    /// <summary>Both public metadata lookup overloads activate a real injected Page.</summary>
+    /// <summary>Metadata looked up by type activates an injected Page.</summary>
     [UITestMethod]
-    public void MetadataLookupSupportsTypeAndName()
+    public void GetXamlTypeByType_InjectedPage_ActivatesPage()
     {
         var metadata = (IXamlMetadataProvider)Application.Current;
-        Assert.IsInstanceOfType<FirstPage>(metadata.GetXamlType(typeof(FirstPage)).ActivateInstance());
-        Assert.IsInstanceOfType<FirstPage>(metadata.GetXamlType(typeof(FirstPage).FullName!).ActivateInstance());
+
+        var page = metadata.GetXamlType(typeof(FirstPage)).ActivateInstance();
+
+        page.ShouldBeOfType<FirstPage>();
+    }
+
+    /// <summary>Metadata looked up by full name activates an injected Page.</summary>
+    [UITestMethod]
+    public void GetXamlTypeByName_InjectedPage_ActivatesPage()
+    {
+        var metadata = (IXamlMetadataProvider)Application.Current;
+
+        var page = metadata.GetXamlType(typeof(FirstPage).FullName!).ActivateInstance();
+
+        page.ShouldBeOfType<FirstPage>();
     }
 }
 
