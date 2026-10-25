@@ -100,6 +100,8 @@ internal static class ReferencedViewModuleReader
             compilation.GetTypeByMetadataName(MetadataNames.ViewModuleAttribute);
         if (attributeType is null) return ImmutableArray<ReferencedViewModule>.Empty;
 
+        var servicesType = compilation.GetTypeByMetadataName(
+            "Microsoft.Extensions.DependencyInjection.IServiceCollection");
         var modules = ImmutableArray.CreateBuilder<ReferencedViewModule>();
         foreach (var reference in compilation.References)
         {
@@ -108,7 +110,7 @@ internal static class ReferencedViewModuleReader
 
             foreach (var attribute in assembly.GetAttributes())
                 if (SymbolEqualityComparer.Default.Equals(attribute.AttributeClass, attributeType) &&
-                    TryRead(attribute, compilation, out var module))
+                    TryRead(attribute, compilation, servicesType, out var module))
                     modules.Add(module);
         }
 
@@ -121,6 +123,7 @@ internal static class ReferencedViewModuleReader
     private static bool TryRead(
         AttributeData attribute,
         Compilation compilation,
+        INamedTypeSymbol? servicesType,
         out ReferencedViewModule module)
     {
         module = default;
@@ -129,20 +132,21 @@ internal static class ReferencedViewModuleReader
             return false;
 
         module = new ReferencedViewModule(
-            HasRegistrationMethod(moduleType, compilation),
+            HasRegistrationMethod(moduleType, compilation, servicesType),
             moduleType.ContainingAssembly.Name,
             moduleType.ToGlobalDisplayString());
         return true;
     }
 
-    private static bool HasRegistrationMethod(INamedTypeSymbol moduleType, Compilation compilation)
+    private static bool HasRegistrationMethod(
+        INamedTypeSymbol moduleType,
+        Compilation compilation,
+        INamedTypeSymbol? servicesType)
     {
         if (!moduleType.CanBeReferencedFromGeneratedModule() ||
             !compilation.IsSymbolAccessibleWithin(moduleType, compilation.Assembly))
             return false;
 
-        var servicesType = compilation.GetTypeByMetadataName(
-            "Microsoft.Extensions.DependencyInjection.IServiceCollection");
         return servicesType is not null && moduleType.GetMembers("Register")
             .OfType<IMethodSymbol>()
             .Any(method => method.MethodKind == MethodKind.Ordinary &&
