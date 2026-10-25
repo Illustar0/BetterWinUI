@@ -104,7 +104,7 @@ sealed class Build : NukeBuild
                 WorkingDirectory = output,
                 UseShellExecute = false,
                 CreateNoWindow = true
-            }) ?? throw new InvalidOperationException($"Could not launch {executable}");
+            })!;
             if (!process.WaitForExit(30_000))
             {
                 process.Kill(entireProcessTree: true);
