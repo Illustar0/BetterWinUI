@@ -16,6 +16,7 @@
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" />
+        <PackageReference Include="Shouldly" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
         <ProjectReference Include="../BetterWinUI.Navigation.Frame/BetterWinUI.Navigation.Frame.csproj" />
         <ProjectReference Include="../BetterWinUI.PageActivation.DependencyInjection/BetterWinUI.PageActivation.DependencyInjection.csproj" />
