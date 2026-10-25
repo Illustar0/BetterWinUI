@@ -198,22 +198,16 @@ public sealed class FrameNavigator
         FrameNavigator owner,
         Microsoft.UI.Xaml.Controls.Frame attachedFrame) : IDisposable
     {
-        private int _isDisposed;
+        private bool _isDisposed;
 
         /// <inheritdoc />
+        /// <remarks>A wrong-thread call throws before the lease changes state.</remarks>
         public void Dispose()
         {
-            if (Interlocked.CompareExchange(ref _isDisposed, 1, 0) != 0) return;
+            if (_isDisposed) return;
 
-            try
-            {
-                owner.Detach(attachedFrame);
-            }
-            catch
-            {
-                Volatile.Write(ref _isDisposed, 0);
-                throw;
-            }
+            owner.Detach(attachedFrame);
+            _isDisposed = true;
         }
     }
 }
