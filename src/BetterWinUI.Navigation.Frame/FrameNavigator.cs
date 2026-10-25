@@ -36,7 +36,8 @@ public sealed class FrameNavigator
     /// <param name="resolvePage">Selects a Page from the ViewModel type and original parameter.</param>
     public FrameNavigator(Func<Type, object?, Type> resolvePage)
     {
-        _resolvePage = resolvePage ?? throw new ArgumentNullException(nameof(resolvePage));
+        ArgumentNullException.ThrowIfNull(resolvePage);
+        _resolvePage = (viewModelType, parameter) => ValidatePage(resolvePage(viewModelType, parameter));
     }
 
     /// <summary>Gets the attached Frame, or null when detached.</summary>
@@ -113,7 +114,6 @@ public sealed class FrameNavigator
         ArgumentNullException.ThrowIfNull(request);
         var frame = GetAttachedFrame();
         var pageType = _resolvePage(request.ViewModelType, request.Parameter);
-        ValidatePage(pageType);
         if (!ReferenceEquals(frame, _frame))
             throw new InvalidOperationException("The Frame attachment changed during Page resolution.");
         return request.TransitionInfo is null
@@ -159,12 +159,13 @@ public sealed class FrameNavigator
     }
 
     /// <summary>Validates Page types returned by an application resolver.</summary>
-    private static void ValidatePage(Type pageType)
+    private static Type ValidatePage(Type pageType)
     {
         ArgumentNullException.ThrowIfNull(pageType);
         if (pageType == typeof(Page) || !typeof(Page).IsAssignableFrom(pageType) ||
             pageType.IsAbstract || pageType.ContainsGenericParameters)
             throw new ArgumentException($"Type '{pageType}' must be a concrete, closed Page subclass.", nameof(pageType));
+        return pageType;
     }
 
     /// <summary>Checks access to the attached Frame's UI thread.</summary>
