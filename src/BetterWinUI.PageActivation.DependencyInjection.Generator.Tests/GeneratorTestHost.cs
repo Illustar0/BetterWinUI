@@ -6,6 +6,7 @@ using BetterWinUI.PageActivation.DependencyInjection.Generator;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.Extensions.DependencyInjection;
+using Shouldly;
 using Xunit;
 
 namespace BetterWinUI.PageActivation.DependencyInjection.Generator.Tests;
@@ -256,16 +257,36 @@ internal static class GeneratorTestHost
     /// </summary>
     public static GenerationResult Run(CSharpCompilation compilation)
     {
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(
-            [new PageActivationGenerator().AsSourceGenerator(), new BetterWinUI.PageActivation.Generator.PageActivationGenerator().AsSourceGenerator()],
-            parseOptions: ParseOptions);
-        driver = driver.RunGeneratorsAndUpdateCompilation(
+        var driver = CreateDriver().RunGeneratorsAndUpdateCompilation(
             compilation,
             out var output,
-            out _);
+            out _,
+            TestContext.Current.CancellationToken);
         return new GenerationResult(
             (CSharpCompilation)output,
             driver.GetRunResult());
+    }
+
+    /// <summary>
+    /// Creates a driver that runs the activation and DI generators together, as a consumer build does.
+    /// </summary>
+    public static GeneratorDriver CreateDriver(bool trackIncrementalSteps = false)
+    {
+        return CSharpGeneratorDriver.Create(
+            [new PageActivationGenerator().AsSourceGenerator(), new BetterWinUI.PageActivation.Generator.PageActivationGenerator().AsSourceGenerator()],
+            parseOptions: ParseOptions,
+            driverOptions: new GeneratorDriverOptions(default, trackIncrementalSteps));
+    }
+
+    /// <summary>
+    /// Adds a source file that no generator observes, simulating an unrelated IDE edit.
+    /// </summary>
+    public static CSharpCompilation AddUnrelatedSource(CSharpCompilation compilation)
+    {
+        return compilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(
+            "namespace Fixture; internal sealed class Unrelated;",
+            ParseOptions,
+            cancellationToken: TestContext.Current.CancellationToken));
     }
 
     /// <summary>
@@ -274,13 +295,8 @@ internal static class GeneratorTestHost
     public static byte[] Emit(Compilation compilation)
     {
         using var stream = new MemoryStream();
-        var result = compilation.Emit(stream);
-        if (!result.Success)
-            throw new InvalidOperationException(
-                string.Join(
-                    Environment.NewLine,
-                    result.Diagnostics.Select(static diagnostic => diagnostic.ToString())));
-
+        var result = compilation.Emit(stream, cancellationToken: TestContext.Current.CancellationToken);
+        result.Success.ShouldBeTrue(string.Join(Environment.NewLine, result.Diagnostics));
         return stream.ToArray();
     }
 
@@ -316,29 +332,30 @@ internal sealed class GenerationResult(
     /// <summary>
     /// Asserts that neither generator nor output compilation contains errors.
     /// </summary>
-    public void AssertNoErrors()
-    {
-        var diagnostics = RunResult.Diagnostics
-            .Concat(OutputCompilation.GetDiagnostics())
+    public void ShouldHaveNoErrors() =>
+        RunResult.Diagnostics
+            .Concat(OutputCompilation.GetDiagnostics(TestContext.Current.CancellationToken))
             .Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
-            .ToImmutableArray();
-        if (!diagnostics.IsDefaultOrEmpty)
-            throw new InvalidOperationException(
-                string.Join(
-                    Environment.NewLine,
-                    diagnostics.Select(static diagnostic => diagnostic.ToString())));
-    }
+            .ShouldBeEmpty();
+
+    /// <summary>
+    /// Asserts that the output compilation, including generated sources, contains no errors.
+    /// </summary>
+    public void ShouldCompile() =>
+        OutputCompilation.GetDiagnostics(TestContext.Current.CancellationToken)
+            .ShouldNotContain(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
 
     /// <summary>
     /// Asserts that the generator reported a diagnostic identifier.
     /// </summary>
-    public void AssertGeneratorDiagnostic(string id)
-    {
-        if (!RunResult.Diagnostics.Any(diagnostic => string.Equals(diagnostic.Id, id, StringComparison.Ordinal)))
-            throw new InvalidOperationException(
-                $"Expected generator diagnostic {id}, got: " +
-                string.Join(", ", RunResult.Diagnostics.Select(static diagnostic => diagnostic.Id)));
-    }
+    public void ShouldReportDiagnostic(string id) =>
+        RunResult.Diagnostics.ShouldContain(diagnostic => string.Equals(diagnostic.Id, id, StringComparison.Ordinal));
+
+    /// <summary>
+    /// Asserts that the generator did not report a diagnostic identifier.
+    /// </summary>
+    public void ShouldNotReportDiagnostic(string id) =>
+        RunResult.Diagnostics.ShouldNotContain(diagnostic => string.Equals(diagnostic.Id, id, StringComparison.Ordinal));
 
     /// <summary>Calls the fixture application's public generated-registration composition root.</summary>
     public IServiceCollection ConfigureServices(string applicationType)

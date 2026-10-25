@@ -1,9 +1,7 @@
-using BetterWinUI.PageActivation.DependencyInjection;
-using BetterWinUI.PageActivation;
-using BetterWinUI.PageActivation.DependencyInjection.Generator;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.Extensions.DependencyInjection;
+using Shouldly;
 using Xunit;
 
 namespace BetterWinUI.PageActivation.DependencyInjection.Generator.Tests;
@@ -13,9 +11,22 @@ namespace BetterWinUI.PageActivation.DependencyInjection.Generator.Tests;
 /// </summary>
 public sealed class PageActivationGeneratorTests
 {
-    /// <summary>An unrelated edit reuses application registration output from unchanged referenced modules.</summary>
+    private const string MissingXamlProviderDiagnostic = "BWPH0004";
+    private const string ActivationConflictDiagnostic = "BWPH0005";
+    private const string UnsupportedXamlContractDiagnostic = "BWPH0006";
+    private const string ProviderOverloadConflictDiagnostic = "BWPA0001";
+    private const string InvalidViewDiagnostic = "BWPA0002";
+    private const string InvalidViewModelDiagnostic = "BWPA0003";
+    private const string IncompatibleModuleDiagnostic = "BWPA0004";
+    private const string MissingPagePublicConstructorDiagnostic = "BWPA0006";
+    private const string UnsupportedLifetimeDiagnostic = "BWPA0007";
+    private const string MissingConversionDiagnostic = "CS0266";
+    private const string ProviderInstallation = "this.UsePageActivation(services);";
+    private const string InitializeDeclaration = "public void Initialize(System.IServiceProvider services)";
+
+    /// <summary>An unrelated edit reuses every cached output, including referenced module registrations.</summary>
     [Fact]
-    public void UnrelatedEditReusesReferencedModuleOutput()
+    public void Generator_UnrelatedEditWithReferencedModule_ReusesCachedOutputs()
     {
         var winUiReference = CreateWinUiReference();
         var viewsReference = CreateFeatureViewsReference(winUiReference);
@@ -23,32 +34,24 @@ public sealed class PageActivationGeneratorTests
             "IncrementalApp",
             [(GeneratorTestHost.ValidApplicationSource, "App.cs")],
             [winUiReference, viewsReference]);
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(
-            [new PageActivationGenerator().AsSourceGenerator(),
-                new BetterWinUI.PageActivation.Generator.PageActivationGenerator().AsSourceGenerator()],
-            parseOptions: (CSharpParseOptions)compilation.SyntaxTrees.First().Options,
-            driverOptions: new GeneratorDriverOptions(default, trackIncrementalGeneratorSteps: true));
+        var driver = GeneratorTestHost.CreateDriver(trackIncrementalSteps: true)
+            .RunGeneratorsAndUpdateCompilation(compilation, out _, out _, TestContext.Current.CancellationToken);
 
-        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out _, TestContext.Current.CancellationToken);
-        var edited = compilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(
-            "namespace Fixture; internal sealed class Unrelated;",
-            (CSharpParseOptions)compilation.SyntaxTrees.First().Options,
-            cancellationToken: TestContext.Current.CancellationToken));
-        driver = driver.RunGeneratorsAndUpdateCompilation(edited, out var output, out _, TestContext.Current.CancellationToken);
+        driver = driver.RunGeneratorsAndUpdateCompilation(
+            GeneratorTestHost.AddUnrelatedSource(compilation), out var output, out _, TestContext.Current.CancellationToken);
 
-        new GenerationResult((CSharpCompilation)output, driver.GetRunResult()).AssertNoErrors();
+        new GenerationResult((CSharpCompilation)output, driver.GetRunResult()).ShouldHaveNoErrors();
         var outputs = driver.GetRunResult().Results[0].TrackedOutputSteps.Values
             .SelectMany(static steps => steps)
             .SelectMany(static step => step.Outputs)
             .ToArray();
-        Assert.NotEmpty(outputs);
-        Assert.All(outputs,
-            static output => Assert.Equal(IncrementalStepRunReason.Cached, output.Reason));
+        outputs.ShouldNotBeEmpty();
+        outputs.ShouldAllBe(static step => step.Reason == IncrementalStepRunReason.Cached);
     }
 
-    /// <summary>A view model library without WinUI references survives repeated incremental runs.</summary>
+    /// <summary>A view model library without WinUI references survives a repeated incremental run.</summary>
     [Fact]
-    public void LibraryWithoutWinUiSurvivesIncrementalEdits()
+    public void Generator_LibraryWithoutWinUiAfterEdit_ReportsNoErrors()
     {
         var compilation = GeneratorTestHost.CreateCompilation(
             "ViewModelLibrary",
@@ -60,77 +63,93 @@ public sealed class PageActivationGeneratorTests
                 [ViewModel(ServiceLifetime.Transient)] public sealed class MainViewModel;
                 """,
                 "MainViewModel.cs")]);
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(
-            [new PageActivationGenerator().AsSourceGenerator(),
-                new BetterWinUI.PageActivation.Generator.PageActivationGenerator().AsSourceGenerator()],
-            parseOptions: (CSharpParseOptions)compilation.SyntaxTrees.First().Options);
+        var driver = GeneratorTestHost.CreateDriver()
+            .RunGeneratorsAndUpdateCompilation(compilation, out _, out _, TestContext.Current.CancellationToken);
 
-        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out _, TestContext.Current.CancellationToken);
-        var edited = compilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(
-            "namespace Fixture; internal sealed class Unrelated;",
-            (CSharpParseOptions)compilation.SyntaxTrees.First().Options,
-            cancellationToken: TestContext.Current.CancellationToken));
-        driver = driver.RunGeneratorsAndUpdateCompilation(edited, out var output, out _, TestContext.Current.CancellationToken);
+        driver = driver.RunGeneratorsAndUpdateCompilation(
+            GeneratorTestHost.AddUnrelatedSource(compilation), out var output, out _, TestContext.Current.CancellationToken);
 
-        new GenerationResult((CSharpCompilation)output, driver.GetRunResult()).AssertNoErrors();
+        new GenerationResult((CSharpCompilation)output, driver.GetRunResult()).ShouldHaveNoErrors();
     }
 
-    /// <summary>Escaped application names compile in both XAML generation passes.</summary>
+    /// <summary>An escaped application name compiles before XAML metadata is generated.</summary>
     [Fact]
-    public void EscapedApplicationNameCompiles()
+    public void GeneratePageActivationHook_EscapedNameInMarkupPass_Compiles()
+    {
+        var appSource = GeneratorTestHost.ValidApplicationSource.Replace("class App", "class @event", StringComparison.Ordinal);
+
+        var result = GeneratorTestHost.Run(
+            "EscapedApplicationMarkupPass",
+            (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
+            (appSource, "App.cs"));
+
+        result.ShouldHaveNoErrors();
+    }
+
+    /// <summary>An escaped application name compiles once XAML metadata is generated.</summary>
+    [Fact]
+    public void GeneratePageActivationHook_EscapedNameInFullPass_Compiles()
     {
         var appSource = GeneratorTestHost.ValidApplicationSource.Replace("class App", "class @event", StringComparison.Ordinal);
         var providerSource = GeneratorTestHost.NativeProviderSource.Replace("class App", "class @event", StringComparison.Ordinal);
 
-        var markupPass = GeneratorTestHost.Run(
-            "EscapedApplicationMarkupPass",
-            (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
-            (appSource, "App.cs"));
-        markupPass.AssertNoErrors();
-
-        var fullPass = GeneratorTestHost.Run(
+        var result = GeneratorTestHost.Run(
             "EscapedApplicationFullPass",
             (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
             (appSource, "App.cs"),
             (providerSource, "XamlTypeInfo.g.cs"));
-        fullPass.AssertNoErrors();
+
+        result.ShouldHaveNoErrors();
     }
 
-    /// <summary>Both factory and provider overloads compile with an application-defined factory.</summary>
+    /// <summary>The complete application fixture compiles with its adapter and registrations.</summary>
     [Fact]
-    public void ExplicitFactoryCanReplaceDependencyInjectionPolicy()
+    public void GeneratePageActivationHook_ValidApplication_Compiles()
+    {
+        var result = GeneratorTestHost.GenerateValidApplication();
+
+        result.ShouldHaveNoErrors();
+    }
+
+    /// <summary>An application-defined factory can replace the DI policy.</summary>
+    [Fact]
+    public void UsePageActivation_ExplicitFactory_Compiles()
     {
         var source = GeneratorTestHost.ValidApplicationSource.Replace(
-            "this.UsePageActivation(services);",
+            ProviderInstallation,
             "this.UsePageActivation(pageType => new ManualPage(new ManualViewModel()));",
             StringComparison.Ordinal);
+
         var result = GeneratorTestHost.Run(
             "ExplicitFactory",
             (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
             (source, "App.cs"),
             (GeneratorTestHost.NativeProviderSource, "XamlTypeInfo.g.cs"));
-        result.AssertNoErrors();
+
+        result.ShouldHaveNoErrors();
     }
 
-    /// <summary>The generated factory requires a Page rather than an arbitrary object.</summary>
+    /// <summary>The generated factory overload requires a Page rather than an arbitrary object.</summary>
     [Fact]
-    public void FactoryReturnTypeIsCheckedAtCompileTime()
+    public void UsePageActivation_FactoryReturningObject_ReportsMissingConversion()
     {
         var source = GeneratorTestHost.ValidApplicationSource.Replace(
-            "this.UsePageActivation(services);",
+            ProviderInstallation,
             "this.UsePageActivation(pageType => new object());",
             StringComparison.Ordinal);
+
         var result = GeneratorTestHost.Run(
             "InvalidFactory",
             (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
             (source, "App.cs"));
-        Assert.Contains(result.OutputCompilation.GetDiagnostics(TestContext.Current.CancellationToken),
-            static diagnostic => string.Equals(diagnostic.Id, "CS0266", StringComparison.Ordinal));
+
+        result.OutputCompilation.GetDiagnostics(TestContext.Current.CancellationToken)
+            .ShouldContain(static diagnostic => string.Equals(diagnostic.Id, MissingConversionDiagnostic, StringComparison.Ordinal));
     }
 
-    /// <summary>A user-defined method cannot silently replace the generated activation entry point.</summary>
+    /// <summary>A user-defined factory overload cannot silently replace the generated entry point.</summary>
     [Fact]
-    public void ConflictingActivationMethodIsDiagnosed()
+    public void GeneratePageActivationHook_UserFactoryOverload_ReportsActivationConflict()
     {
         var result = GeneratorTestHost.Run(
             "ConflictingActivation",
@@ -145,49 +164,31 @@ public sealed class PageActivationGeneratorTests
                  public void UsePageActivation(System.Func<System.Type, Microsoft.UI.Xaml.Controls.Page> factory) { }
              }
              """, "App.cs"));
-        result.AssertGeneratorDiagnostic("BWPH0005");
+
+        result.ShouldReportDiagnostic(ActivationConflictDiagnostic);
     }
 
-    /// <summary>
-    /// Verifies the generated source contract.
-    /// </summary>
+    /// <summary>A native XAML provider typed as the interface is accepted.</summary>
     [Fact]
-    public void GeneratedAdapterAndRegistrationsCompile()
-    {
-        var result = GeneratorTestHost.GenerateValidApplication();
-        result.AssertNoErrors();
-
-    }
-
-    /// <summary>
-    /// Verifies an interface-typed native XAML provider is accepted.
-    /// </summary>
-    [Fact]
-    public void InterfaceTypedNativeProviderIsAccepted()
+    public void GeneratePageActivationHook_InterfaceTypedNativeProvider_Compiles()
     {
         var providerSource = GeneratorTestHost.NativeProviderSource.Replace(
             "private NativeProvider _AppProvider { get; } = new();",
             "private IXamlMetadataProvider _AppProvider { get; } = new NativeProvider();",
             StringComparison.Ordinal);
+
         var result = GeneratorTestHost.Run(
             "InterfaceTypedNativeProvider",
             (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
             (GeneratorTestHost.ValidApplicationSource, "App.cs"),
             (providerSource, "XamlTypeInfo.g.cs"));
 
-        result.AssertNoErrors();
-        Assert.DoesNotContain(
-            result.RunResult.Diagnostics,
-            static diagnostic => string.Equals(
-                diagnostic.Id,
-                "BWPH0004",
-                StringComparison.Ordinal));
-
+        result.ShouldHaveNoErrors();
     }
 
-    /// <summary>An unrelated private provider property must not hide WinUI's generated provider.</summary>
+    /// <summary>An unrelated private provider property does not hide the native provider.</summary>
     [Fact]
-    public void UserProviderPropertyDoesNotHideNativeProvider()
+    public void GetXamlType_AdditionalPrivateProviderProperty_UsesNativeProvider()
     {
         var result = GeneratorTestHost.Run(
             "AdditionalProvider",
@@ -201,35 +202,32 @@ public sealed class PageActivationGeneratorTests
              }
              """, "UserProvider.cs"),
             (GeneratorTestHost.NativeProviderSource, "XamlTypeInfo.g.cs"));
-        result.AssertNoErrors();
-
         using var stream = new MemoryStream(GeneratorTestHost.Emit(result.OutputCompilation));
         var assembly = System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromStream(stream);
         var app = Activator.CreateInstance(assembly.GetType("Fixture.App", true)!)!;
-        var providerType = assembly.GetType("Microsoft.UI.Xaml.Markup.IXamlMetadataProvider", true)!;
-        var pageType = assembly.GetType("Fixture.MainPage", true)!;
-        var metadata = providerType.GetMethod("GetXamlType", [typeof(Type)])!.Invoke(app, [pageType]);
-        Assert.NotNull(metadata);
+        var getXamlType = assembly.GetType("Microsoft.UI.Xaml.Markup.IXamlMetadataProvider", true)!
+            .GetMethod("GetXamlType", [typeof(Type)])!;
+
+        var metadata = getXamlType.Invoke(app, [assembly.GetType("Fixture.MainPage", true)]);
+
+        metadata.ShouldNotBeNull();
     }
 
-    /// <summary>
-    /// Verifies DI composition is available during WinUI's first markup compilation pass.
-    /// </summary>
+    /// <summary>The DI composition root is available in WinUI's first markup compilation pass.</summary>
     [Fact]
-    public void EarlyGenerationIncludesCompositionRoot()
+    public void AddGeneratedPageServices_MarkupPass_Compiles()
     {
         var result = GeneratorTestHost.Run(
             "EarlyGeneration",
             (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
             (GeneratorTestHost.ValidApplicationSource, "App.cs"));
 
-        result.AssertNoErrors();
-
+        result.ShouldHaveNoErrors();
     }
 
-    /// <summary>Scoped attributes generate standard DI descriptors for Pages and ViewModels.</summary>
+    /// <summary>Scoped attributes generate scoped DI descriptors for Pages and ViewModels.</summary>
     [Fact]
-    public void ScopedRegistrationsAreGenerated()
+    public void AddGeneratedPageServices_ScopedAttributes_RegistersScopedDescriptors()
     {
         var source = GeneratorTestHost.ValidApplicationSource
             .Replace("ServiceLifetime.Singleton", "ServiceLifetime.Scoped", StringComparison.Ordinal);
@@ -238,27 +236,24 @@ public sealed class PageActivationGeneratorTests
             (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
             (source, "App.cs"),
             (GeneratorTestHost.NativeProviderSource, "XamlTypeInfo.g.cs"));
-        result.AssertNoErrors();
+
         var services = result.ConfigureServices("Fixture.App");
-        Assert.Contains(services, static descriptor =>
-            string.Equals(descriptor.ServiceType.Name, "SingletonPage", StringComparison.Ordinal) && descriptor.Lifetime == ServiceLifetime.Scoped);
-        Assert.Contains(services, static descriptor =>
-            string.Equals(descriptor.ServiceType.Name, "SingletonViewModel", StringComparison.Ordinal) && descriptor.Lifetime == ServiceLifetime.Scoped);
+
+        services.ShouldSatisfyAllConditions(
+            () => services.ShouldContain(descriptor => IsRegistration(descriptor, "Fixture.SingletonPage", ServiceLifetime.Scoped)),
+            () => services.ShouldContain(descriptor => IsRegistration(descriptor, "Fixture.SingletonViewModel", ServiceLifetime.Scoped)));
     }
 
-    /// <summary>
-    /// Verifies invalid page constructors and service lifetimes are diagnosed.
-    /// </summary>
+    /// <summary>A Page without a public constructor is reported.</summary>
     [Fact]
-    public void InvalidRegistrationDiagnostics()
+    public void View_PrivateConstructor_ReportsMissingPublicConstructor()
     {
-        var missingPageConstructor = GeneratorTestHost.Run(
+        var result = GeneratorTestHost.Run(
             "MissingPageConstructorDiagnostic",
             (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
             (
                 """
                 using BetterWinUI.PageActivation.DependencyInjection;
-                using BetterWinUI.PageActivation;
                 using Microsoft.UI.Xaml.Controls;
                 namespace Fixture;
                 [View]
@@ -268,124 +263,111 @@ public sealed class PageActivationGeneratorTests
                 }
                 """,
                 "MissingPageConstructor.cs"));
-        missingPageConstructor.AssertGeneratorDiagnostic("BWPA0006");
 
-        var unsupportedLifetime = GeneratorTestHost.Run(
+        result.ShouldReportDiagnostic(MissingPagePublicConstructorDiagnostic);
+    }
+
+    /// <summary>An undefined service lifetime is reported for Pages and ViewModels.</summary>
+    [Theory]
+    [InlineData("[View((ServiceLifetime)42)] public sealed class View : Page;")]
+    [InlineData("[ViewModel((ServiceLifetime)42)] public sealed class ViewModel;")]
+    public void Registration_UndefinedLifetime_ReportsUnsupportedLifetime(string declaration)
+    {
+        var source = $"""
+            using BetterWinUI.PageActivation.DependencyInjection;
+            using Microsoft.Extensions.DependencyInjection;
+            using Microsoft.UI.Xaml.Controls;
+            namespace Fixture;
+            {declaration}
+            """;
+
+        var result = GeneratorTestHost.Run(
             "UnsupportedLifetimeDiagnostic",
             (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
-            (
-                """
-                using BetterWinUI.PageActivation.DependencyInjection;
-                using BetterWinUI.PageActivation;
-                using Microsoft.Extensions.DependencyInjection;
-                using Microsoft.UI.Xaml.Controls;
-                namespace Fixture;
-                [View((ServiceLifetime)42)]
-                public sealed class View : Page;
-                [ViewModel((ServiceLifetime)42)]
-                public sealed class ViewModel;
-                """,
-                "UnsupportedLifetime.cs"));
-        unsupportedLifetime.AssertGeneratorDiagnostic("BWPA0007");
+            (source, "UnsupportedLifetime.cs"));
+
+        result.ShouldReportDiagnostic(UnsupportedLifetimeDiagnostic);
     }
 
-    /// <summary>
-    /// Verifies missing generated application infrastructure is diagnosed.
-    /// </summary>
+    /// <summary>XAML output without a native metadata provider is reported.</summary>
     [Fact]
-    public void MissingApplicationInfrastructureDiagnostics()
+    public void GeneratePageActivationHook_XamlOutputWithoutProvider_ReportsMissingXamlProvider()
     {
-        const string applicationSource =
-            """
-            using BetterWinUI.PageActivation.DependencyInjection;
-            using BetterWinUI.PageActivation;
-            using Microsoft.UI.Xaml;
-            namespace Fixture;
-            [GeneratePageActivationHook] public sealed partial class App : Application;
-            """;
-        var missingProvider = GeneratorTestHost.Run(
+        var result = GeneratorTestHost.Run(
             "MissingProviderDiagnostic",
             (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
-            (applicationSource, "App.cs"),
-            ("namespace Fixture; internal sealed class XamlMarker;", "XamlTypeInfo.g.cs"));
-        missingProvider.AssertGeneratorDiagnostic("BWPH0004");
-
-    }
-
-    /// <summary>
-    /// Verifies unsupported XAML contracts are diagnosed.
-    /// </summary>
-    [Fact]
-    public void UnsupportedXamlContractDiagnostic()
-    {
-        var unsupportedContract = GeneratorTestHost.Run(
-            "UnsupportedContractDiagnostic",
-            (
-                GeneratorTestHost.WinUiStubs.Replace(
-                    "object ActivateInstance();",
-                    "object CreateInstance();",
-                    StringComparison.Ordinal),
-                "WinUI.cs"),
             (
                 """
-                using BetterWinUI.PageActivation.DependencyInjection;
                 using BetterWinUI.PageActivation;
                 using Microsoft.UI.Xaml;
                 namespace Fixture;
-                [GeneratePageActivationHook]
-                public sealed partial class App : Application
-                {
-                    public void Initialize(System.IServiceProvider services) =>
-                        this.UsePageActivation(services);
-                }
+                [GeneratePageActivationHook] public sealed partial class App : Application;
                 """,
                 "App.cs"),
-            (GeneratorTestHost.NativeProviderSource, "XamlTypeInfo.g.cs"));
-        unsupportedContract.AssertGeneratorDiagnostic("BWPH0006");
+            ("namespace Fixture; internal sealed class XamlMarker;", "XamlTypeInfo.g.cs"));
+
+        result.ShouldReportDiagnostic(MissingXamlProviderDiagnostic);
     }
 
-    /// <summary>Other overloads and deferred installation through a delegate compile without warnings.</summary>
+    /// <summary>A XAML type contract without an activation member is reported.</summary>
     [Fact]
-    public void ApplicationCanChooseItsInstallationEntryPoint()
+    public void GeneratePageActivationHook_XamlTypeWithoutActivateInstance_ReportsUnsupportedContract()
     {
-        var source = GeneratorTestHost.ValidApplicationSource.Replace(
-            "this.UsePageActivation(services);",
-            "((System.Action<System.IServiceProvider>)this.UsePageActivation)(services);",
-            StringComparison.Ordinal).Replace(
-            "public void Initialize(System.IServiceProvider services)",
-            "public void UsePageActivation() { }\n    public void Initialize(System.IServiceProvider services)",
+        var winUiStubs = GeneratorTestHost.WinUiStubs.Replace(
+            "object ActivateInstance();",
+            "object CreateInstance();",
             StringComparison.Ordinal);
+
+        var result = GeneratorTestHost.Run(
+            "UnsupportedContractDiagnostic",
+            (winUiStubs, "WinUI.cs"),
+            (GeneratorTestHost.ValidApplicationSource, "App.cs"),
+            (GeneratorTestHost.NativeProviderSource, "XamlTypeInfo.g.cs"));
+
+        result.ShouldReportDiagnostic(UnsupportedXamlContractDiagnostic);
+    }
+
+    /// <summary>Unrelated overloads and delegate-based installation compile without diagnostics.</summary>
+    [Fact]
+    public void UsePageActivation_UnrelatedOverloadAndDelegateInstallation_ReportsNoDiagnostics()
+    {
+        var source = GeneratorTestHost.ValidApplicationSource
+            .Replace(ProviderInstallation, "((System.Action<System.IServiceProvider>)this.UsePageActivation)(services);", StringComparison.Ordinal)
+            .Replace(InitializeDeclaration, $"public void UsePageActivation() {{ }}\n    {InitializeDeclaration}", StringComparison.Ordinal);
+
         var result = GeneratorTestHost.Run(
             "DeferredInstallation",
             (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
             (source, "App.cs"),
             (GeneratorTestHost.NativeProviderSource, "XamlTypeInfo.g.cs"));
-        result.AssertNoErrors();
-        Assert.Empty(result.RunResult.Diagnostics);
+
+        result.ShouldSatisfyAllConditions(
+            result.ShouldCompile,
+            () => result.RunResult.Diagnostics.ShouldBeEmpty());
     }
 
-    /// <summary>The DI generator reports only conflicts with its provider overload.</summary>
+    /// <summary>A user provider overload is reported by the DI generator only.</summary>
     [Fact]
-    public void ConflictingProviderOverloadIsDiagnosed()
+    public void UsePageActivation_UserProviderOverload_ReportsOnlyProviderConflict()
     {
         var source = GeneratorTestHost.ValidApplicationSource.Replace(
-            "public void Initialize(System.IServiceProvider services)",
-            "public void UsePageActivation(System.IServiceProvider services) { }\n    public void Initialize(System.IServiceProvider services)",
+            InitializeDeclaration,
+            $"public void UsePageActivation(System.IServiceProvider services) {{ }}\n    {InitializeDeclaration}",
             StringComparison.Ordinal);
+
         var result = GeneratorTestHost.Run(
             "ProviderConflict",
             (GeneratorTestHost.WinUiStubs, "WinUI.cs"),
             (source, "App.cs"));
-        result.AssertGeneratorDiagnostic("BWPA0001");
-        Assert.DoesNotContain(result.RunResult.Diagnostics,
-            static diagnostic => string.Equals(diagnostic.Id, "BWPH0005", StringComparison.Ordinal));
+
+        result.ShouldSatisfyAllConditions(
+            () => result.ShouldReportDiagnostic(ProviderOverloadConflictDiagnostic),
+            () => result.ShouldNotReportDiagnostic(ActivationConflictDiagnostic));
     }
 
-    /// <summary>
-    /// Verifies types that a namespace-level generated module cannot name are rejected.
-    /// </summary>
+    /// <summary>Types that a namespace-level module cannot name are reported and left out.</summary>
     [Fact]
-    public void InaccessibleAndOuterGenericRegistrationsAreRejected()
+    public void ViewAndViewModel_UnnameableTypes_ReportDiagnosticsAndCompile()
     {
         var result = GeneratorTestHost.Run(
             "InvalidRegistrationTypes",
@@ -393,7 +375,6 @@ public sealed class PageActivationGeneratorTests
             (
                 """
                 using BetterWinUI.PageActivation.DependencyInjection;
-                using BetterWinUI.PageActivation;
                 using Microsoft.Extensions.DependencyInjection;
                 using Microsoft.UI.Xaml.Controls;
                 namespace Fixture;
@@ -424,74 +405,82 @@ public sealed class PageActivationGeneratorTests
                 """,
                 "InvalidRegistrationTypes.cs"));
 
-        result.AssertGeneratorDiagnostic("BWPA0002");
-        result.AssertGeneratorDiagnostic("BWPA0003");
-        Assert.DoesNotContain(
-            result.OutputCompilation.GetDiagnostics(TestContext.Current.CancellationToken),
-            static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        result.ShouldSatisfyAllConditions(
+            () => result.ShouldReportDiagnostic(InvalidViewDiagnostic),
+            () => result.ShouldReportDiagnostic(InvalidViewModelDiagnostic),
+            result.ShouldCompile);
     }
 
-    /// <summary>
-    /// Verifies compile-time composition through a referenced generated module.
-    /// </summary>
+    /// <summary>The composition root registers local services and services from referenced modules.</summary>
     [Fact]
-    public void CrossAssemblyComposition()
+    public void AddGeneratedPageServices_ReferencedModule_RegistersLocalAndReferencedServices()
     {
         var winUiReference = CreateWinUiReference();
         var viewsReference = CreateFeatureViewsReference(winUiReference);
         var application = GenerateComposedApplication(winUiReference, viewsReference);
 
-        application.AssertNoErrors();
         var services = application.ConfigureServices("Composition.App");
-        Assert.Contains(services, static descriptor =>
-            string.Equals(descriptor.ServiceType.FullName, "Feature.FeaturePage", StringComparison.Ordinal) &&
-            descriptor.Lifetime == ServiceLifetime.Singleton);
-        Assert.Contains(services, static descriptor =>
-            string.Equals(descriptor.ServiceType.FullName, "Feature.FeatureViewModel", StringComparison.Ordinal) &&
-            descriptor.Lifetime == ServiceLifetime.Singleton);
-        Assert.Contains(services, static descriptor =>
-            string.Equals(descriptor.ServiceType.FullName, "Composition.LocalPage", StringComparison.Ordinal) &&
-            descriptor.Lifetime == ServiceLifetime.Transient);
+
+        services.ShouldSatisfyAllConditions(
+            () => services.ShouldContain(descriptor => IsRegistration(descriptor, "Feature.FeaturePage", ServiceLifetime.Singleton)),
+            () => services.ShouldContain(descriptor => IsRegistration(descriptor, "Feature.FeatureViewModel", ServiceLifetime.Singleton)),
+            () => services.ShouldContain(descriptor => IsRegistration(descriptor, "Composition.LocalPage", ServiceLifetime.Transient)));
     }
 
-    /// <summary>Referenced modules are accepted according to their callable API, without a version marker.</summary>
+    /// <summary>Referenced modules exposing the registration contract are composed without a version marker.</summary>
     [Theory]
-    [InlineData("public class Module { public static void Register(IServiceCollection services) { } }", true)]
-    [InlineData("public class Module { public static void Register(IServiceCollection services) { } public static void Register(object services) { } }", true)]
-    [InlineData("public class Module { }", false)]
-    [InlineData("public class Module { public void Register(IServiceCollection services) { } }", false)]
-    [InlineData("public class Module { private static void Register(IServiceCollection services) { } }", false)]
-    [InlineData("public class Module { public static int Register(IServiceCollection services) => 0; }", false)]
-    [InlineData("public class Module { public static void Register<T>(IServiceCollection services) { } }", false)]
-    [InlineData("public class Module { public static void Register(object services) { } }", false)]
-    [InlineData("public class Module { public static void Register(ref IServiceCollection services) { } }", false)]
-    [InlineData("public class Module { public static void Register(IServiceCollection services, bool option = false) { } }", false)]
-    [InlineData("internal class Module { public static void Register(IServiceCollection services) { } }", false)]
-    public void ReferencedModuleMustExposeRegistrationContract(string declaration, bool valid)
+    [InlineData("public class Module { public static void Register(IServiceCollection services) { } }")]
+    [InlineData("public class Module { public static void Register(IServiceCollection services) { } public static void Register(object services) { } }")]
+    public void AddGeneratedPageServices_ModuleWithRegistrationContract_Compiles(string declaration)
     {
-        var moduleSource = """
+        var result = GenerateModuleConsumer(declaration);
+
+        result.ShouldHaveNoErrors();
+    }
+
+    /// <summary>Referenced modules without a callable registration contract are reported and skipped.</summary>
+    [Theory]
+    [InlineData("public class Module { }")]
+    [InlineData("public class Module { public void Register(IServiceCollection services) { } }")]
+    [InlineData("public class Module { private static void Register(IServiceCollection services) { } }")]
+    [InlineData("public class Module { public static int Register(IServiceCollection services) => 0; }")]
+    [InlineData("public class Module { public static void Register<T>(IServiceCollection services) { } }")]
+    [InlineData("public class Module { public static void Register(object services) { } }")]
+    [InlineData("public class Module { public static void Register(ref IServiceCollection services) { } }")]
+    [InlineData("public class Module { public static void Register(IServiceCollection services, bool option = false) { } }")]
+    [InlineData("internal class Module { public static void Register(IServiceCollection services) { } }")]
+    public void AddGeneratedPageServices_ModuleWithoutRegistrationContract_ReportsIncompatibleModule(string declaration)
+    {
+        var result = GenerateModuleConsumer(declaration);
+
+        result.ShouldSatisfyAllConditions(
+            () => result.ShouldReportDiagnostic(IncompatibleModuleDiagnostic),
+            result.ShouldCompile);
+    }
+
+    /// <summary>Matches a generated service registration by implementation name and lifetime.</summary>
+    private static bool IsRegistration(ServiceDescriptor descriptor, string serviceTypeName, ServiceLifetime lifetime) =>
+        string.Equals(descriptor.ServiceType.FullName, serviceTypeName, StringComparison.Ordinal) &&
+        descriptor.Lifetime == lifetime;
+
+    /// <summary>Generates the valid application against a referenced assembly declaring one module.</summary>
+    private static GenerationResult GenerateModuleConsumer(string moduleDeclaration)
+    {
+        var moduleSource = $$"""
             using BetterWinUI.PageActivation.DependencyInjection;
             using Microsoft.Extensions.DependencyInjection;
             [assembly: PageActivationViewModule(typeof(Module))]
-            """ + Environment.NewLine + declaration;
+            {{moduleDeclaration}}
+            """;
         var module = GeneratorTestHost.CreateCompilation(
             "Module_" + Guid.NewGuid().ToString("N"), [(moduleSource, "Module.cs")]);
         var reference = MetadataReference.CreateFromImage(GeneratorTestHost.Emit(module));
-        var result = GeneratorTestHost.Run(GeneratorTestHost.CreateCompilation(
+        return GeneratorTestHost.Run(GeneratorTestHost.CreateCompilation(
             "ModuleConsumer",
             [(GeneratorTestHost.WinUiStubs, "WinUI.cs"),
              (GeneratorTestHost.ValidApplicationSource, "App.cs"),
              (GeneratorTestHost.NativeProviderSource, "XamlTypeInfo.g.cs")],
             [reference]));
-
-        if (valid)
-            result.AssertNoErrors();
-        else
-        {
-            result.AssertGeneratorDiagnostic("BWPA0004");
-            Assert.DoesNotContain(result.OutputCompilation.GetDiagnostics(TestContext.Current.CancellationToken),
-                static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
-        }
     }
 
     /// <summary>
@@ -521,7 +510,6 @@ public sealed class PageActivationGeneratorTests
                     (
                         """
                         using BetterWinUI.PageActivation.DependencyInjection;
-                        using BetterWinUI.PageActivation;
                         using Microsoft.Extensions.DependencyInjection;
                         using Microsoft.UI.Xaml.Controls;
                         namespace Feature;
@@ -533,7 +521,7 @@ public sealed class PageActivationGeneratorTests
                         "Feature.cs")
                 ],
                 [winUiReference]));
-        views.AssertNoErrors();
+        views.ShouldHaveNoErrors();
         var image = GeneratorTestHost.Emit(views.OutputCompilation);
         using var stream = new MemoryStream(image);
         _ = System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromStream(stream);
@@ -587,7 +575,6 @@ public sealed class PageActivationGeneratorTests
                     (
                         """
                         using BetterWinUI.PageActivation.DependencyInjection;
-                        using BetterWinUI.PageActivation;
                         using Microsoft.UI.Xaml.Controls;
                         namespace Composition;
                         [View]
