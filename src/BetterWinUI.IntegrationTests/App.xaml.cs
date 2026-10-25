@@ -11,7 +11,6 @@ namespace BetterWinUI.IntegrationTests;
 [GeneratePageActivationHook]
 public sealed partial class App : Application
 {
-    /// <summary>Gets the provider owned by the test application.</summary>
     public ServiceProvider Services { get; }
 
     /// <summary>Creates real XAML metadata and DI registrations before any navigation.</summary>

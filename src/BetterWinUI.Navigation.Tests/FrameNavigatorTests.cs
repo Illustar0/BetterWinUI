@@ -7,7 +7,6 @@ namespace BetterWinUI.Navigation.Tests;
 /// <summary>Verifies detached navigator behavior without creating XAML objects.</summary>
 public sealed class FrameNavigatorTests
 {
-    /// <summary>A new navigator has no Frame.</summary>
     [Fact]
     public void IsAttached_NewNavigator_ReturnsFalse()
     {
@@ -16,7 +15,6 @@ public sealed class FrameNavigatorTests
         navigator.IsAttached.ShouldBeFalse();
     }
 
-    /// <summary>A detached navigator has no back history.</summary>
     [Fact]
     public void CanGoBack_DetachedNavigator_ReturnsFalse()
     {
@@ -25,7 +23,6 @@ public sealed class FrameNavigatorTests
         navigator.CanGoBack.ShouldBeFalse();
     }
 
-    /// <summary>A detached navigator has no forward history.</summary>
     [Fact]
     public void CanGoForward_DetachedNavigator_ReturnsFalse()
     {
@@ -34,7 +31,6 @@ public sealed class FrameNavigatorTests
         navigator.CanGoForward.ShouldBeFalse();
     }
 
-    /// <summary>A detached navigator rejects navigation before consulting the resolver.</summary>
     [Fact]
     public void Navigate_DetachedNavigator_ThrowsWithoutInvokingResolver()
     {
@@ -50,7 +46,6 @@ public sealed class FrameNavigatorTests
         resolverCalls.ShouldBe(0);
     }
 
-    /// <summary>A detached navigator rejects navigation with an associated parameter.</summary>
     [Fact]
     public void NavigateWithAssociatedParameter_DetachedNavigator_ThrowsInvalidOperationException()
     {
@@ -59,7 +54,6 @@ public sealed class FrameNavigatorTests
         Should.Throw<InvalidOperationException>(() => navigator.Navigate<DetailViewModel, DetailArgs>(new DetailArgs(0)));
     }
 
-    /// <summary>A detached navigator rejects back navigation.</summary>
     [Fact]
     public void GoBack_DetachedNavigator_ThrowsInvalidOperationException()
     {
@@ -68,7 +62,6 @@ public sealed class FrameNavigatorTests
         Should.Throw<InvalidOperationException>(navigator.GoBack);
     }
 
-    /// <summary>A detached navigator rejects forward navigation.</summary>
     [Fact]
     public void GoForward_DetachedNavigator_ThrowsInvalidOperationException()
     {

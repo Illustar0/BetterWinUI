@@ -217,9 +217,6 @@ internal static class GeneratorTestHost
             (NativeProviderSource, "XamlTypeInfo.g.cs"));
     }
 
-    /// <summary>
-    /// Creates a compilation from source tuples and optional additional references.
-    /// </summary>
     public static CSharpCompilation CreateCompilation(
         string assemblyName,
         IEnumerable<(string Source, string Path)> sources,
@@ -242,9 +239,6 @@ internal static class GeneratorTestHost
                 nullableContextOptions: NullableContextOptions.Enable));
     }
 
-    /// <summary>
-    /// Runs the generator for source tuples.
-    /// </summary>
     public static GenerationResult Run(
         string assemblyName,
         params (string Source, string Path)[] sources)
@@ -289,9 +283,6 @@ internal static class GeneratorTestHost
             cancellationToken: TestContext.Current.CancellationToken));
     }
 
-    /// <summary>
-    /// Emits a compilation to an in-memory assembly image.
-    /// </summary>
     public static byte[] Emit(Compilation compilation)
     {
         using var stream = new MemoryStream();
@@ -316,17 +307,12 @@ internal static class GeneratorTestHost
     }
 }
 
-/// <summary>
-/// Represents one completed generator run.
-/// </summary>
 internal sealed class GenerationResult(
     CSharpCompilation outputCompilation,
     GeneratorDriverRunResult runResult)
 {
-    /// <summary>Gets the compilation containing generated sources.</summary>
     public CSharpCompilation OutputCompilation { get; } = outputCompilation;
 
-    /// <summary>Gets generator diagnostics and generated source results.</summary>
     public GeneratorDriverRunResult RunResult { get; } = runResult;
 
     /// <summary>

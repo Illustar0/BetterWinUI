@@ -4,10 +4,9 @@ using Microsoft.UI.Xaml.Controls;
 
 namespace BetterWinUI.IntegrationTests;
 
-/// <summary>Supplies a real XAML Page for activation and navigation tests.</summary>
+/// <summary>Has no service registration, so DI activation must fail instead of falling back to native activation.</summary>
 
 public sealed partial class UnregisteredPage : Page
 {
-    /// <summary>Initializes a Page through the native XAML activator.</summary>
     public UnregisteredPage() => InitializeComponent();
 }

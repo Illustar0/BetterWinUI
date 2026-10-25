@@ -9,7 +9,6 @@ public sealed class FrameNavigationRequestTests
 {
     private const string UnassociatedParameter = "unassociated";
 
-    /// <summary>An associated parameter is retained by reference with its logical target.</summary>
     [Fact]
     public void For_AssociatedParameter_PreservesTargetAndParameter()
     {
@@ -23,7 +22,6 @@ public sealed class FrameNavigationRequestTests
             () => request.TransitionInfo.ShouldBeNull());
     }
 
-    /// <summary>A request without a parameter carries null.</summary>
     [Fact]
     public void For_NoParameter_HasNullParameter()
     {
@@ -32,7 +30,6 @@ public sealed class FrameNavigationRequestTests
         request.Parameter.ShouldBeNull();
     }
 
-    /// <summary>Open requests accept parameters that are not associated with the target.</summary>
     [Fact]
     public void For_UnassociatedParameter_PreservesParameter()
     {

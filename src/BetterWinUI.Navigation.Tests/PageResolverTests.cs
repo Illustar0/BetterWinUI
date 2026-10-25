@@ -15,7 +15,6 @@ public sealed class PageResolverTests
     public static TheoryData<Type> InvalidPageTypes =>
         new() { typeof(object), typeof(Page), typeof(AbstractPage), typeof(GenericPage<>) };
 
-    /// <summary>Every resolver returns the Page for a resolvable target.</summary>
     [Theory]
     [MemberData(nameof(HomeResolvers), DisableDiscoveryEnumeration = true)]
     public void Resolve_ResolvableTarget_ReturnsPage(PageResolver resolver)
@@ -25,13 +24,11 @@ public sealed class PageResolverTests
         page.ShouldBe(typeof(HomePage));
     }
 
-    /// <summary>Every resolver rejects a null target.</summary>
     [Theory]
     [MemberData(nameof(HomeResolvers), DisableDiscoveryEnumeration = true)]
     public void Resolve_NullTarget_ThrowsArgumentNullException(PageResolver resolver) =>
         Should.Throw<ArgumentNullException>(() => resolver.Resolve(null!, parameter: null));
 
-    /// <summary>A policy receives the target and the original parameter.</summary>
     [Fact]
     public void Resolve_Policy_ReceivesTargetAndParameter()
     {
@@ -52,7 +49,6 @@ public sealed class PageResolverTests
             () => receivedParameter.ShouldBeSameAs(parameter));
     }
 
-    /// <summary>A policy result that is not a concrete, closed Page subclass is rejected.</summary>
     [Theory]
     [MemberData(nameof(InvalidPageTypes), DisableDiscoveryEnumeration = true)]
     public void Resolve_PolicyReturnsInvalidPage_ThrowsArgumentException(Type pageType)
@@ -62,7 +58,6 @@ public sealed class PageResolverTests
         Should.Throw<ArgumentException>(() => resolver.Resolve(typeof(HomeViewModel), parameter: null));
     }
 
-    /// <summary>A policy that returns no Page type is rejected.</summary>
     [Fact]
     public void Resolve_PolicyReturnsNull_ThrowsArgumentNullException()
     {
@@ -71,7 +66,6 @@ public sealed class PageResolverTests
         Should.Throw<ArgumentNullException>(() => resolver.Resolve(typeof(HomeViewModel), parameter: null));
     }
 
-    /// <summary>A map rejects an unmapped target even when a parameter is supplied.</summary>
     [Fact]
     public void Resolve_UnmappedMapTarget_ThrowsKeyNotFoundException()
     {
@@ -80,12 +74,10 @@ public sealed class PageResolverTests
         Should.Throw<KeyNotFoundException>(() => resolver.Resolve(typeof(DetailViewModel), new DetailArgs(0)));
     }
 
-    /// <summary>Create rejects a null policy.</summary>
     [Fact]
     public void Create_NullPolicy_ThrowsArgumentNullException() =>
         Should.Throw<ArgumentNullException>(() => PageResolver.Create(null!));
 
-    /// <summary>Creates a map containing only the home mapping.</summary>
     private static PageMap CreateHomeMap()
     {
         var pages = new PageMap();

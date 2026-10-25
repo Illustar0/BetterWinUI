@@ -56,7 +56,6 @@ public sealed class NavigationGeneratorTests
         }
         """;
 
-    /// <summary>An unrelated source edit reuses every cached generator output.</summary>
     [Fact]
     public void Generator_UnrelatedEdit_ReusesCachedOutputs()
     {
@@ -89,7 +88,6 @@ public sealed class NavigationGeneratorTests
         outputs.ShouldAllBe(static result => result.Reason == IncrementalStepRunReason.Cached);
     }
 
-    /// <summary>A consumer adds its local defaults and explicitly selected referenced modules only.</summary>
     [Fact]
     public void AddGeneratedPages_ReferencedAssembly_AddsOnlySelectedNamedModule()
     {
@@ -141,7 +139,6 @@ public sealed class NavigationGeneratorTests
             () => map.ContainsKey(featureAssembly.GetType("Feature.DefaultViewModel", true)!).ShouldBeFalse());
     }
 
-    /// <summary>Two mappings for one ViewModel in the same module are both reported.</summary>
     [Fact]
     public void PageFor_DuplicateTargetInOneModule_ReportsEachConflict()
     {
@@ -150,7 +147,6 @@ public sealed class NavigationGeneratorTests
         result.Run.Diagnostics.Count(static diagnostic => HasId(diagnostic, ConflictingMappingDiagnostic)).ShouldBe(2);
     }
 
-    /// <summary>A conflict in one module does not affect the same ViewModel in another module.</summary>
     [Fact]
     public void AddGeneratedPages_ModuleWithoutConflict_MapsItsPage()
     {
@@ -162,7 +158,6 @@ public sealed class NavigationGeneratorTests
         map.Resolve(assembly.GetType("Fixture.Target", true)!).ShouldBe(assembly.GetType("Fixture.C", true));
     }
 
-    /// <summary>Invalid Page and module declarations report a generator diagnostic and still compile.</summary>
     [Theory]
     [InlineData("[PageFor<Target>] public sealed class NotPage;", InvalidPageDiagnostic)]
     [InlineData("[PageFor<Target>] public abstract class AbstractPage : Page;", InvalidPageDiagnostic)]
@@ -183,7 +178,6 @@ public sealed class NavigationGeneratorTests
                 .ShouldNotContain(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
     }
 
-    /// <summary>Generated code compiles for escaped identifiers in the global namespace.</summary>
     [Fact]
     public void PageModule_EscapedNamesInGlobalNamespace_Compiles()
     {
@@ -198,7 +192,6 @@ public sealed class NavigationGeneratorTests
         ShouldHaveNoErrors(result);
     }
 
-    /// <summary>Open navigation accepts any parameter and the strict overload accepts an associated one.</summary>
     [Fact]
     public void Navigate_OpenAndAssociatedParameters_Compile()
     {
@@ -207,7 +200,6 @@ public sealed class NavigationGeneratorTests
         ShouldHaveNoErrors(result);
     }
 
-    /// <summary>The strict overload rejects a parameter associated with another ViewModel.</summary>
     [Fact]
     public void NavigateWithAssociatedParameter_OtherTarget_ReportsUnsatisfiedConstraint()
     {
@@ -230,7 +222,6 @@ public sealed class NavigationGeneratorTests
         return ((CSharpCompilation)output, driver.GetRunResult());
     }
 
-    /// <summary>Creates an independent consumer compilation for generator tests.</summary>
     private static CSharpCompilation CreateCompilation(string name, string source, params MetadataReference[] extraReferences)
     {
         var parseOptions = new CSharpParseOptions(LanguageVersion.CSharp12);
@@ -248,7 +239,6 @@ public sealed class NavigationGeneratorTests
             .Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
             .ShouldBeEmpty();
 
-    /// <summary>Matches a diagnostic identifier exactly.</summary>
     private static bool HasId(Diagnostic diagnostic, string id) =>
         string.Equals(diagnostic.Id, id, StringComparison.Ordinal);
 

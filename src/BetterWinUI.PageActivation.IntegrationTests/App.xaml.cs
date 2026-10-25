@@ -22,10 +22,8 @@ public sealed partial class App : Application
     /// <summary>Gets the Page created by native navigation before installing the hook.</summary>
     public object NativeContent { get; private set; } = null!;
 
-    /// <summary>Gets the last type received by the factory.</summary>
     public Type? LastRequestedType { get; private set; }
 
-    /// <summary>Gets the number of factory calls.</summary>
     public int FactoryCalls { get; private set; }
 
     /// <summary>Loads real XAML metadata without installing a factory yet.</summary>

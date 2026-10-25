@@ -15,17 +15,14 @@ public sealed class PageActivationHookTests
 {
     private static App Current => (App)Application.Current;
 
-    /// <summary>The generated hook application exposes the factory installation interface.</summary>
     [UITestMethod]
     public void HookApplication_Generated_ImplementsPageActivationHook() =>
         Application.Current.ShouldBeAssignableTo<IPageActivationHook<Page>>();
 
-    /// <summary>Native activation stays intact until a factory is installed.</summary>
     [UITestMethod]
     public void Navigate_BeforeFactoryInstalled_UsesNativeActivation() =>
         Current.NativeContent.ShouldBeOfType<NativePage>();
 
-    /// <summary>Frame navigation passes the requested Page type to the factory and shows its Page.</summary>
     [UITestMethod]
     public void Navigate_FactoryPage_UsesApplicationFactory()
     {
@@ -39,7 +36,6 @@ public sealed class PageActivationHookTests
             () => frame.Content.ShouldBeOfType<FactoryPage>().Dependency.ShouldBeSameAs(Current.Dependency));
     }
 
-    /// <summary>Metadata obtained before installation uses the factory installed later.</summary>
     [UITestMethod]
     public void ActivateInstance_MetadataCachedBeforeInstallation_UsesInstalledFactory()
     {
@@ -48,7 +44,6 @@ public sealed class PageActivationHookTests
         page.ShouldBeOfType<FactoryPage>().Dependency.ShouldBeSameAs(Current.Dependency);
     }
 
-    /// <summary>Metadata looked up by full name uses the installed factory.</summary>
     [UITestMethod]
     public void GetXamlTypeByName_FactoryPage_UsesInstalledFactory()
     {
@@ -59,12 +54,10 @@ public sealed class PageActivationHookTests
         page.ShouldBeOfType<FactoryPage>().Dependency.ShouldBeSameAs(Current.Dependency);
     }
 
-    /// <summary>A factory cannot be installed twice.</summary>
     [UITestMethod]
     public void UsePageActivation_AlreadyInstalled_ThrowsInvalidOperationException() =>
         Should.Throw<InvalidOperationException>(() => Current.UsePageActivation(_ => throw new InvalidOperationException()));
 
-    /// <summary>A rejected reinstallation keeps the original factory.</summary>
     [UITestMethod]
     public void Navigate_AfterRejectedReinstallation_UsesOriginalFactory()
     {
@@ -76,12 +69,10 @@ public sealed class PageActivationHookTests
         frame.Content.ShouldBeOfType<FactoryPage>().Dependency.ShouldBeSameAs(Current.Dependency);
     }
 
-    /// <summary>A null factory is rejected before installation.</summary>
     [UITestMethod]
     public void UsePageActivation_NullFactory_ThrowsArgumentNullException() =>
         Should.Throw<ArgumentNullException>(() => Current.UsePageActivation(null!));
 
-    /// <summary>A null factory result fails without calling the Page's native constructor.</summary>
     [UITestMethod]
     public void Navigate_FactoryReturnsNull_ThrowsWithoutNativeFallback()
     {
@@ -95,7 +86,6 @@ public sealed class PageActivationHookTests
             () => NullPage.Constructions.ShouldBe(constructions));
     }
 
-    /// <summary>An unrelated Page result fails instead of changing the requested type.</summary>
     [UITestMethod]
     public void Navigate_FactoryReturnsIncompatiblePage_ThrowsWithoutNativeFallback()
     {
@@ -109,7 +99,6 @@ public sealed class PageActivationHookTests
             () => WrongPage.Constructions.ShouldBe(constructions));
     }
 
-    /// <summary>Factory exceptions reach the caller unchanged without native activation.</summary>
     [UITestMethod]
     public void Navigate_FactoryThrows_PropagatesSameExceptionWithoutNativeFallback()
     {
@@ -123,7 +112,6 @@ public sealed class PageActivationHookTests
             () => ThrowingPage.Constructions.ShouldBe(constructions));
     }
 
-    /// <summary>A native cache hit reuses the Page without calling the factory again.</summary>
     [UITestMethod]
     public void GoBack_CachedPage_ReusesPageWithoutInvokingFactory()
     {
@@ -140,7 +128,6 @@ public sealed class PageActivationHookTests
             () => Current.FactoryCalls.ShouldBe(calls));
     }
 
-    /// <summary>Direct construction bypasses the XAML activation hook.</summary>
     [UITestMethod]
     public void Constructor_DirectConstruction_DoesNotInvokeFactory()
     {

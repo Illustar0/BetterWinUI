@@ -26,7 +26,6 @@ public sealed class PageActivationGeneratorTests
     private const string ProviderInstallation = "this.UsePageActivation(services);";
     private const string InitializeDeclaration = "public void Initialize(System.IServiceProvider services)";
 
-    /// <summary>An unrelated edit reuses every cached output, including referenced module registrations.</summary>
     [Fact]
     public void Generator_UnrelatedEditWithReferencedModule_ReusesCachedOutputs()
     {
@@ -51,7 +50,6 @@ public sealed class PageActivationGeneratorTests
         outputs.ShouldAllBe(static step => step.Reason == IncrementalStepRunReason.Cached);
     }
 
-    /// <summary>A view model library without WinUI references survives a repeated incremental run.</summary>
     [Fact]
     public void Generator_LibraryWithoutWinUiAfterEdit_ReportsNoErrors()
     {
@@ -74,7 +72,6 @@ public sealed class PageActivationGeneratorTests
         new GenerationResult((CSharpCompilation)output, driver.GetRunResult()).ShouldHaveNoErrors();
     }
 
-    /// <summary>An escaped application name compiles before XAML metadata is generated.</summary>
     [Fact]
     public void GeneratePageActivationHook_EscapedNameInMarkupPass_Compiles()
     {
@@ -88,7 +85,6 @@ public sealed class PageActivationGeneratorTests
         result.ShouldHaveNoErrors();
     }
 
-    /// <summary>An escaped application name compiles once XAML metadata is generated.</summary>
     [Fact]
     public void GeneratePageActivationHook_EscapedNameInFullPass_Compiles()
     {
@@ -104,7 +100,6 @@ public sealed class PageActivationGeneratorTests
         result.ShouldHaveNoErrors();
     }
 
-    /// <summary>The complete application fixture compiles with its adapter and registrations.</summary>
     [Fact]
     public void GeneratePageActivationHook_ValidApplication_Compiles()
     {
@@ -113,7 +108,6 @@ public sealed class PageActivationGeneratorTests
         result.ShouldHaveNoErrors();
     }
 
-    /// <summary>An application-defined factory can replace the DI policy.</summary>
     [Fact]
     public void UsePageActivation_ExplicitFactory_Compiles()
     {
@@ -131,7 +125,6 @@ public sealed class PageActivationGeneratorTests
         result.ShouldHaveNoErrors();
     }
 
-    /// <summary>The generated factory overload requires a Page rather than an arbitrary object.</summary>
     [Fact]
     public void UsePageActivation_FactoryReturningObject_ReportsMissingConversion()
     {
@@ -149,7 +142,6 @@ public sealed class PageActivationGeneratorTests
             .ShouldContain(static diagnostic => string.Equals(diagnostic.Id, MissingConversionDiagnostic, StringComparison.Ordinal));
     }
 
-    /// <summary>A user-defined factory overload cannot silently replace the generated entry point.</summary>
     [Fact]
     public void GeneratePageActivationHook_UserFactoryOverload_ReportsActivationConflict()
     {
@@ -170,7 +162,6 @@ public sealed class PageActivationGeneratorTests
         result.ShouldReportDiagnostic(ActivationConflictDiagnostic);
     }
 
-    /// <summary>Unsupported hook application declarations are reported.</summary>
     [Theory]
     [InlineData("[GeneratePageActivationHook] public sealed class App : Application;", ApplicationMustBePartialDiagnostic)]
     [InlineData("[GeneratePageActivationHook] public sealed partial class App;", InvalidApplicationDiagnostic)]
@@ -195,7 +186,6 @@ public sealed class PageActivationGeneratorTests
         result.ShouldReportDiagnostic(diagnosticId);
     }
 
-    /// <summary>A native XAML provider typed as the interface is accepted.</summary>
     [Fact]
     public void GeneratePageActivationHook_InterfaceTypedNativeProvider_Compiles()
     {
@@ -213,7 +203,6 @@ public sealed class PageActivationGeneratorTests
         result.ShouldHaveNoErrors();
     }
 
-    /// <summary>An unrelated private provider property does not hide the native provider.</summary>
     [Fact]
     public void GetXamlType_AdditionalPrivateProviderProperty_UsesNativeProvider()
     {
@@ -240,7 +229,6 @@ public sealed class PageActivationGeneratorTests
         metadata.ShouldNotBeNull();
     }
 
-    /// <summary>The DI composition root is available in WinUI's first markup compilation pass.</summary>
     [Fact]
     public void AddGeneratedPageServices_MarkupPass_Compiles()
     {
@@ -252,7 +240,6 @@ public sealed class PageActivationGeneratorTests
         result.ShouldHaveNoErrors();
     }
 
-    /// <summary>Scoped attributes generate scoped DI descriptors for Pages and ViewModels.</summary>
     [Fact]
     public void AddGeneratedPageServices_ScopedAttributes_RegistersScopedDescriptors()
     {
@@ -271,7 +258,6 @@ public sealed class PageActivationGeneratorTests
             () => services.ShouldContain(descriptor => IsRegistration(descriptor, "Fixture.SingletonViewModel", ServiceLifetime.Scoped)));
     }
 
-    /// <summary>A Page without a public constructor is reported.</summary>
     [Fact]
     public void View_PrivateConstructor_ReportsMissingPublicConstructor()
     {
@@ -294,7 +280,6 @@ public sealed class PageActivationGeneratorTests
         result.ShouldReportDiagnostic(MissingPagePublicConstructorDiagnostic);
     }
 
-    /// <summary>An undefined service lifetime is reported for Pages and ViewModels.</summary>
     [Theory]
     [InlineData("[View((ServiceLifetime)42)] public sealed class View : Page;")]
     [InlineData("[ViewModel((ServiceLifetime)42)] public sealed class ViewModel;")]
@@ -316,7 +301,6 @@ public sealed class PageActivationGeneratorTests
         result.ShouldReportDiagnostic(UnsupportedLifetimeDiagnostic);
     }
 
-    /// <summary>XAML output without a native metadata provider is reported.</summary>
     [Fact]
     public void GeneratePageActivationHook_XamlOutputWithoutProvider_ReportsMissingXamlProvider()
     {
@@ -336,7 +320,6 @@ public sealed class PageActivationGeneratorTests
         result.ShouldReportDiagnostic(MissingXamlProviderDiagnostic);
     }
 
-    /// <summary>A XAML type contract without an activation member is reported.</summary>
     [Fact]
     public void GeneratePageActivationHook_XamlTypeWithoutActivateInstance_ReportsUnsupportedContract()
     {
@@ -354,7 +337,6 @@ public sealed class PageActivationGeneratorTests
         result.ShouldReportDiagnostic(UnsupportedXamlContractDiagnostic);
     }
 
-    /// <summary>Unrelated overloads and delegate-based installation compile without diagnostics.</summary>
     [Fact]
     public void UsePageActivation_UnrelatedOverloadAndDelegateInstallation_ReportsNoDiagnostics()
     {
@@ -373,7 +355,6 @@ public sealed class PageActivationGeneratorTests
             () => result.RunResult.Diagnostics.ShouldBeEmpty());
     }
 
-    /// <summary>A user provider overload takes precedence over the DI extension without diagnostics.</summary>
     [Fact]
     public void UsePageActivation_UserProviderOverload_CompilesWithoutDiagnostics()
     {
@@ -392,7 +373,6 @@ public sealed class PageActivationGeneratorTests
             () => result.RunResult.Diagnostics.ShouldBeEmpty());
     }
 
-    /// <summary>Types that a namespace-level module cannot name are reported and left out.</summary>
     [Fact]
     public void ViewAndViewModel_UnnameableTypes_ReportDiagnosticsAndCompile()
     {
@@ -438,7 +418,6 @@ public sealed class PageActivationGeneratorTests
             result.ShouldCompile);
     }
 
-    /// <summary>The composition root registers local services and services from referenced modules.</summary>
     [Fact]
     public void AddGeneratedPageServices_ReferencedModule_RegistersLocalAndReferencedServices()
     {
@@ -454,7 +433,6 @@ public sealed class PageActivationGeneratorTests
             () => services.ShouldContain(descriptor => IsRegistration(descriptor, "Composition.LocalPage", ServiceLifetime.Transient)));
     }
 
-    /// <summary>Referenced modules exposing the registration contract are composed without a version marker.</summary>
     [Theory]
     [InlineData("public class Module { public static void Register(IServiceCollection services) { } }")]
     [InlineData("public class Module { public static void Register(IServiceCollection services) { } public static void Register(object services) { } }")]
@@ -465,7 +443,6 @@ public sealed class PageActivationGeneratorTests
         result.ShouldHaveNoErrors();
     }
 
-    /// <summary>Referenced modules without a callable registration contract are reported and skipped.</summary>
     [Theory]
     [InlineData("public class Module { }")]
     [InlineData("public class Module { public void Register(IServiceCollection services) { } }")]

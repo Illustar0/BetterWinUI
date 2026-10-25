@@ -39,7 +39,6 @@ public sealed partial class GenericPage<T> : Page;
 /// <summary>Supplies a Page without a parameterless constructor.</summary>
 public sealed partial class ConstructorInjectedPage(HomeViewModel viewModel) : Page
 {
-    /// <summary>Gets the constructor-injected ViewModel.</summary>
     public HomeViewModel ViewModel { get; } = viewModel;
 }
 /// <summary>Supplies a registration failure after staging one valid mapping.</summary>

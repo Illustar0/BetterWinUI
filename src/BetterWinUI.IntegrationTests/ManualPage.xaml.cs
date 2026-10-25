@@ -4,10 +4,9 @@ using Microsoft.UI.Xaml.Controls;
 
 namespace BetterWinUI.IntegrationTests;
 
-/// <summary>Supplies a real XAML Page for activation and navigation tests.</summary>
+/// <summary>Is registered explicitly by the test application instead of with the View attribute.</summary>
 
 public sealed partial class ManualPage : Page
 {
-    /// <summary>Initializes a manually registered Page.</summary>
     public ManualPage() => InitializeComponent();
 }

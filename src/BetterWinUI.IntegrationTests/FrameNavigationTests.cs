@@ -14,7 +14,6 @@ namespace BetterWinUI.IntegrationTests;
 [TestClass]
 public sealed class FrameNavigationTests
 {
-    /// <summary>The open overload passes the original parameter to the native Frame.</summary>
     [UITestMethod]
     public void Navigate_OpenParameter_PassesOriginalParameterToFrame()
     {
@@ -31,7 +30,6 @@ public sealed class FrameNavigationTests
             () => received.ShouldBeSameAs(parameter));
     }
 
-    /// <summary>The associated-parameter overload passes the original parameter to the native Frame.</summary>
     [UITestMethod]
     public void NavigateWithAssociatedParameter_ParameterSupplied_PassesOriginalParameterToFrame()
     {
@@ -47,7 +45,6 @@ public sealed class FrameNavigationTests
             () => received.ShouldBeSameAs(parameter));
     }
 
-    /// <summary>A request transition is recorded in the native journal even without a parameter.</summary>
     [UITestMethod]
     public void NavigateRequest_TransitionWithoutParameter_RecordsTransitionInJournal()
     {
@@ -63,7 +60,6 @@ public sealed class FrameNavigationTests
             () => entry.Parameter.ShouldBeNull());
     }
 
-    /// <summary>New navigation uses a replaced mapping.</summary>
     [UITestMethod]
     public void Navigate_MappingReplaced_UsesNewPage()
     {
@@ -77,7 +73,6 @@ public sealed class FrameNavigationTests
         attached.Frame.Content.ShouldBeOfType<SecondPage>();
     }
 
-    /// <summary>A second navigation creates back history.</summary>
     [UITestMethod]
     public void CanGoBack_AfterSecondNavigation_ReturnsTrue()
     {
@@ -86,7 +81,6 @@ public sealed class FrameNavigationTests
         attached.Navigator.CanGoBack.ShouldBeTrue();
     }
 
-    /// <summary>Back navigation follows the native journal.</summary>
     [UITestMethod]
     public void GoBack_AfterSecondNavigation_RestoresFirstPage()
     {
@@ -97,7 +91,6 @@ public sealed class FrameNavigationTests
         attached.Frame.Content.ShouldBeOfType<FirstPage>();
     }
 
-    /// <summary>Back navigation with a transition uses the journal after its mapping is removed.</summary>
     [UITestMethod]
     public void GoBackWithTransition_MappingRemoved_RestoresJournalPage()
     {
@@ -110,7 +103,6 @@ public sealed class FrameNavigationTests
         attached.Frame.Content.ShouldBeOfType<FirstPage>();
     }
 
-    /// <summary>Back navigation creates forward history.</summary>
     [UITestMethod]
     public void CanGoForward_AfterGoBack_ReturnsTrue()
     {
@@ -120,7 +112,6 @@ public sealed class FrameNavigationTests
         attached.Navigator.CanGoForward.ShouldBeTrue();
     }
 
-    /// <summary>Forward navigation follows the native journal.</summary>
     [UITestMethod]
     public void GoForward_AfterGoBack_RestoresSecondPage()
     {
@@ -132,7 +123,6 @@ public sealed class FrameNavigationTests
         attached.Frame.Content.ShouldBeOfType<SecondPage>();
     }
 
-    /// <summary>A navigator over a frozen map ignores later source changes.</summary>
     [UITestMethod]
     public void Navigate_FrozenMapSourceChanged_UsesSnapshotPage()
     {
@@ -147,7 +137,6 @@ public sealed class FrameNavigationTests
         frame.Content.ShouldBeOfType<FirstPage>();
     }
 
-    /// <summary>The application resolver receives the logical target and original parameter.</summary>
     [UITestMethod]
     public void Navigate_ApplicationResolver_ReceivesTargetAndParameter()
     {
@@ -169,7 +158,6 @@ public sealed class FrameNavigationTests
             () => attached.Frame.Content.ShouldBeOfType<SecondPage>());
     }
 
-    /// <summary>A resolver result that is not a Page is rejected before native navigation.</summary>
     [UITestMethod]
     public void Navigate_ResolverReturnsNonPage_ThrowsWithoutNavigating()
     {
@@ -180,7 +168,6 @@ public sealed class FrameNavigationTests
         attached.Frame.Content.ShouldBeNull();
     }
 
-    /// <summary>Resolver exceptions reach the caller unchanged.</summary>
     [UITestMethod]
     public void Navigate_ResolverThrows_PropagatesSameException()
     {
@@ -192,7 +179,6 @@ public sealed class FrameNavigationTests
         exception.ShouldBeSameAs(failure);
     }
 
-    /// <summary>A canceled navigation returns the native result instead of reporting a page switch.</summary>
     [UITestMethod]
     public void Navigate_NavigatingCanceled_ReturnsNativeResultWithoutNavigating()
     {
@@ -210,7 +196,6 @@ public sealed class FrameNavigationTests
             () => attached.Frame.BackStack.ShouldBeEmpty());
     }
 
-    /// <summary>A reentrant navigation receives the native failure result while the outer call completes.</summary>
     [UITestMethod]
     public void Navigate_ReentrantCall_ReturnsNativeFailureForNestedCall()
     {
@@ -226,7 +211,6 @@ public sealed class FrameNavigationTests
             () => attached.Frame.Content.ShouldBeOfType<FirstPage>());
     }
 
-    /// <summary>Page constructor failures propagate instead of becoming a false result.</summary>
     [UITestMethod]
     public void Navigate_PageConstructorThrows_PropagatesException()
     {
@@ -237,7 +221,6 @@ public sealed class FrameNavigationTests
         exception.Message.ShouldBe(FailingPage.FailureMessage);
     }
 
-    /// <summary>An empty journal has no back entry.</summary>
     [UITestMethod]
     public void CanGoBack_EmptyJournal_ReturnsFalse()
     {
@@ -246,7 +229,6 @@ public sealed class FrameNavigationTests
         attached.Navigator.CanGoBack.ShouldBeFalse();
     }
 
-    /// <summary>An empty journal has no forward entry.</summary>
     [UITestMethod]
     public void CanGoForward_EmptyJournal_ReturnsFalse()
     {
@@ -255,7 +237,6 @@ public sealed class FrameNavigationTests
         attached.Navigator.CanGoForward.ShouldBeFalse();
     }
 
-    /// <summary>Back navigation is rejected without a back entry.</summary>
     [UITestMethod]
     public void GoBack_EmptyJournal_ThrowsInvalidOperationException()
     {
@@ -264,7 +245,6 @@ public sealed class FrameNavigationTests
         Should.Throw<InvalidOperationException>(attached.Navigator.GoBack);
     }
 
-    /// <summary>Back navigation with a transition is rejected without a back entry.</summary>
     [UITestMethod]
     public void GoBackWithTransition_EmptyJournal_ThrowsInvalidOperationException()
     {
@@ -273,7 +253,6 @@ public sealed class FrameNavigationTests
         Should.Throw<InvalidOperationException>(() => attached.Navigator.GoBack(new SuppressNavigationTransitionInfo()));
     }
 
-    /// <summary>Forward navigation is rejected without a forward entry.</summary>
     [UITestMethod]
     public void GoForward_EmptyJournal_ThrowsInvalidOperationException()
     {
@@ -282,7 +261,6 @@ public sealed class FrameNavigationTests
         Should.Throw<InvalidOperationException>(attached.Navigator.GoForward);
     }
 
-    /// <summary>Only one Frame can be attached at a time.</summary>
     [UITestMethod]
     public void Attach_FrameAlreadyAttached_ThrowsInvalidOperationException()
     {
@@ -291,7 +269,6 @@ public sealed class FrameNavigationTests
         Should.Throw<InvalidOperationException>(() => attached.Navigator.Attach(new Frame()));
     }
 
-    /// <summary>Disposing the lease detaches its Frame.</summary>
     [UITestMethod]
     public void DisposeLease_AttachedFrame_Detaches()
     {
@@ -303,7 +280,6 @@ public sealed class FrameNavigationTests
         navigator.IsAttached.ShouldBeFalse();
     }
 
-    /// <summary>Disposing a released lease again leaves a replacement attachment intact.</summary>
     [UITestMethod]
     public void DisposeLease_AfterReplacementAttached_KeepsReplacement()
     {
@@ -318,7 +294,6 @@ public sealed class FrameNavigationTests
         navigator.Frame.ShouldBeSameAs(replacement);
     }
 
-    /// <summary>Navigation from a worker thread is rejected.</summary>
     [UITestMethod]
     public async Task Navigate_FromWorkerThread_ThrowsInvalidOperationException()
     {
@@ -329,7 +304,6 @@ public sealed class FrameNavigationTests
         await Should.ThrowAsync<InvalidOperationException>(navigation);
     }
 
-    /// <summary>Disposing a lease from a worker thread fails and keeps the Frame attached.</summary>
     [UITestMethod]
     public async Task DisposeLease_FromWorkerThread_ThrowsAndKeepsAttachment()
     {
@@ -341,7 +315,6 @@ public sealed class FrameNavigationTests
         attached.Navigator.IsAttached.ShouldBeTrue();
     }
 
-    /// <summary>A lease disposal that failed on a worker thread can be retried on the UI thread.</summary>
     [UITestMethod]
     public async Task DisposeLease_RetriedAfterWorkerThreadFailure_Detaches()
     {
@@ -353,7 +326,6 @@ public sealed class FrameNavigationTests
         attached.Navigator.IsAttached.ShouldBeFalse();
     }
 
-    /// <summary>A resolver that detaches the Frame stops the navigation.</summary>
     [UITestMethod]
     public void Navigate_ResolverDetachesFrame_ThrowsWithoutNavigating()
     {
@@ -371,7 +343,6 @@ public sealed class FrameNavigationTests
         frame.Content.ShouldBeNull();
     }
 
-    /// <summary>The native cache restores the same Page instance even after its mapping changes.</summary>
     [UITestMethod]
     public void GoBack_CachedPageAfterMappingChange_RestoresSameInstance()
     {
@@ -387,7 +358,6 @@ public sealed class FrameNavigationTests
         attached.Frame.Content.ShouldBeSameAs(page);
     }
 
-    /// <summary>Creates a map that resolves the detail target to one Page.</summary>
     private static PageMap CreateDetailMap<TPage>() where TPage : Page
     {
         var pages = new PageMap();
@@ -395,14 +365,11 @@ public sealed class FrameNavigationTests
         return pages;
     }
 
-    /// <summary>Attaches a new Frame to a navigator backed by a Page map.</summary>
     private static AttachedNavigator Attach(PageMap pages) => Attach(new FrameNavigator(pages));
 
-    /// <summary>Attaches a new Frame to a navigator backed by an application policy.</summary>
     private static AttachedNavigator Attach(Func<Type, object?, Type> resolvePage) =>
         Attach(new FrameNavigator(PageResolver.Create(resolvePage)));
 
-    /// <summary>Attaches a new Frame to a navigator.</summary>
     private static AttachedNavigator Attach(FrameNavigator navigator)
     {
         var frame = new Frame();
