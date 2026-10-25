@@ -1,7 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 
-namespace BetterWinUI.PageActivation.Generator;
+namespace BetterWinUI.PageActivation.Generators.Internal;
 
 /// <summary>
 /// Stores a diagnostic location without retaining a syntax tree in the incremental pipeline.

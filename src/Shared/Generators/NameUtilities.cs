@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace BetterWinUI.PageActivation.DependencyInjection.Generator;
+namespace BetterWinUI.PageActivation.Generators.Internal;
 
 /// <summary>
 /// Creates deterministic, source-safe names for generated declarations.

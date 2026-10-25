@@ -27,7 +27,8 @@
 
     <ItemGroup>
         <Compile
-                Include="../Shared/Generators/PageActivationApplication.cs"
-                Link="Shared/PageActivationApplication.cs" />
+                Include="../Shared/Generators/*.cs"
+                Link="Shared/%(Filename)%(Extension)" />
+        <Using Include="BetterWinUI.PageActivation.Generators.Internal" />
     </ItemGroup>
 </Project>

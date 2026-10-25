@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using BetterWinUI.PageActivation.Generators.Internal;
 using Microsoft.CodeAnalysis;
 
 namespace BetterWinUI.PageActivation.Generator;

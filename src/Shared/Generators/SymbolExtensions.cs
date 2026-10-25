@@ -2,7 +2,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace BetterWinUI.PageActivation.Generator;
+namespace BetterWinUI.PageActivation.Generators.Internal;
 
 /// <summary>
 /// Provides focused Roslyn symbol operations used by generator models.

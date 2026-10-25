@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Reflection;
 using Scriban;
 
-namespace BetterWinUI.PageActivation.DependencyInjection.Generator;
+namespace BetterWinUI.PageActivation.Generators.Internal;
 
 /// <summary>
 /// Loads embedded Scriban templates and exposes one small rendering seam.

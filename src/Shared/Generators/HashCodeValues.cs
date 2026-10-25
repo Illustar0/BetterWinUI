@@ -1,4 +1,4 @@
-namespace BetterWinUI.PageActivation.Generator;
+namespace BetterWinUI.PageActivation.Generators.Internal;
 
 /// <summary>
 /// Defines the shared constants used by value-model hash code implementations.
