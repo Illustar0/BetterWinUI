@@ -95,8 +95,6 @@ internal static class ReferencedViewModuleReader
     {
         var attributeType =
             compilation.GetTypeByMetadataName(MetadataNames.ViewModuleAttribute);
-        if (attributeType is null) return ImmutableArray<ReferencedViewModule>.Empty;
-
         var servicesType = compilation.GetTypeByMetadataName(
             "Microsoft.Extensions.DependencyInjection.IServiceCollection");
         var modules = ImmutableArray.CreateBuilder<ReferencedViewModule>();
@@ -124,8 +122,7 @@ internal static class ReferencedViewModuleReader
         out ReferencedViewModule module)
     {
         module = default;
-        if (attribute.ConstructorArguments.Length != 1 ||
-            attribute.ConstructorArguments[0].Value is not INamedTypeSymbol moduleType)
+        if (attribute.ConstructorArguments is not [{ Value: INamedTypeSymbol moduleType }])
             return false;
 
         module = new ReferencedViewModule(
@@ -144,7 +141,7 @@ internal static class ReferencedViewModuleReader
             !compilation.IsSymbolAccessibleWithin(moduleType, compilation.Assembly))
             return false;
 
-        return servicesType is not null && moduleType.GetMembers("Register")
+        return moduleType.GetMembers("Register")
             .OfType<IMethodSymbol>()
             .Any(method => method.MethodKind == MethodKind.Ordinary &&
                 method.IsStatic && !method.IsAbstract && method.ReturnsVoid && method.Arity == 0 &&
