@@ -78,8 +78,7 @@ namespace BetterWinUI.PageActivation.Generated
         internal PageActivationXamlMetadataProvider_{{ Suffix }}(
             {{ MetadataProviderInterfaceName }} nativeProvider)
         {
-            this.nativeProvider =
-                nativeProvider ?? throw new global::System.ArgumentNullException(nameof(nativeProvider));
+            this.nativeProvider = nativeProvider;
         }
 
         internal void Initialize(global::System.Func<global::System.Type, global::Microsoft.UI.Xaml.Controls.Page> activate)

@@ -13,7 +13,6 @@ namespace {{ ModuleNamespace }}
         public static void Register(
             global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)
         {
-            global::System.ArgumentNullException.ThrowIfNull(services);
 {{ for View in Views }}
             global::Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.TryAdd(
                 services,
