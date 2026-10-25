@@ -8,11 +8,11 @@ internal static class TemplateRenderer
 {
     private static readonly ConcurrentDictionary<string, Template> Templates = new(StringComparer.Ordinal);
 
-    /// <summary>Renders a template using the model's original public member names.</summary>
+    /// <summary>Renders an embedded template with a model whose members keep their C# names.</summary>
+    /// <remarks>Scriban renames members to snake_case by default; the templates use the original names.</remarks>
     internal static string Render(string name, object model) =>
         Templates.GetOrAdd(name, Load).Render(model, static member => member.Name);
 
-    /// <summary>Loads and validates one embedded template.</summary>
     private static Template Load(string name)
     {
         using var stream = typeof(TemplateRenderer).Assembly.GetManifestResourceStream(

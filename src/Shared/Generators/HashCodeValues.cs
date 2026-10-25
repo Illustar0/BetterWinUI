@@ -1,10 +1,7 @@
 namespace BetterWinUI.PageActivation.Generators.Internal;
 
-/// <summary>
-/// Defines the shared constants used by value-model hash code implementations.
-/// </summary>
 internal static class HashCodeValues
 {
-    /// <summary>An odd prime used to combine successive hash code fields.</summary>
+    // System.HashCode is unavailable in netstandard2.0, so value models combine fields with this odd prime.
     public const int Multiplier = 397;
 }

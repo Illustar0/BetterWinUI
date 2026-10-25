@@ -2,12 +2,13 @@ using System.Globalization;
 
 namespace BetterWinUI.Navigation.Generator;
 
-/// <summary>
-/// Produces deterministic source identifiers from assembly names.
-/// </summary>
 internal static class NameUtilities
 {
-    /// <summary>Combines a readable identifier with a deterministic FNV-1a suffix.</summary>
+    /// <summary>Turns a name into an identifier suffix that is stable across builds and unique per name.</summary>
+    /// <remarks>
+    /// Replacing invalid characters can map different names to the same identifier, so a hash of the original
+    /// name is appended. FNV-1a is used because <see cref="string.GetHashCode()" /> is randomized per process.
+    /// </remarks>
     internal static string CreateSuffix(string value)
     {
         var identifier = new string(value.Select(static character => char.IsLetterOrDigit(character) ? character : '_').ToArray());

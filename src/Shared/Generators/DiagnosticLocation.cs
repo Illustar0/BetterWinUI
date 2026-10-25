@@ -3,17 +3,13 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace BetterWinUI.PageActivation.Generators.Internal;
 
-/// <summary>
-/// Stores a diagnostic location without retaining a syntax tree in the incremental pipeline.
-/// </summary>
+/// <summary>Stores a source location as plain values so it can be cached in the incremental pipeline.</summary>
+/// <remarks>
+/// A Roslyn <see cref="Location" /> holds its syntax tree, which would keep old compilations alive and defeat
+/// incremental caching.
+/// </remarks>
 internal readonly struct DiagnosticLocation : IEquatable<DiagnosticLocation>
 {
-    /// <summary>
-    /// Initializes a source location.
-    /// </summary>
-    /// <param name="path">The source file path.</param>
-    /// <param name="span">The source text span.</param>
-    /// <param name="lineSpan">The source line span.</param>
     public DiagnosticLocation(string path, TextSpan span, LinePositionSpan lineSpan)
     {
         Path = path;
@@ -21,26 +17,12 @@ internal readonly struct DiagnosticLocation : IEquatable<DiagnosticLocation>
         LineSpan = lineSpan;
     }
 
-    /// <summary>
-    /// Gets the source file path.
-    /// </summary>
     public string Path { get; }
 
-    /// <summary>
-    /// Gets the source text span.
-    /// </summary>
     public TextSpan Span { get; }
 
-    /// <summary>
-    /// Gets the source line span.
-    /// </summary>
     public LinePositionSpan LineSpan { get; }
 
-    /// <summary>
-    /// Creates a value location from a Roslyn location.
-    /// </summary>
-    /// <param name="location">The Roslyn location.</param>
-    /// <returns>The value location.</returns>
     public static DiagnosticLocation Create(Location location)
     {
         var lineSpan = location.GetLineSpan();
@@ -50,10 +32,6 @@ internal readonly struct DiagnosticLocation : IEquatable<DiagnosticLocation>
             lineSpan.Span);
     }
 
-    /// <summary>
-    /// Recreates a Roslyn location for diagnostic reporting.
-    /// </summary>
-    /// <returns>The recreated Roslyn location.</returns>
     public Location ToLocation()
     {
         return Location.Create(Path, Span, LineSpan);

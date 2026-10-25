@@ -6,42 +6,36 @@ internal static class DiagnosticDescriptors
 {
     private const string Category = "BetterWinUI.PageActivation.DependencyInjection";
     private const string HelpRoot = "https://github.com/Illustar0/BetterWinUI/blob/main/src/BetterWinUI.PageActivation.DependencyInjection/README.md";
-    /// <summary>The view is unsupported.</summary>
     public static readonly DiagnosticDescriptor InvalidView = Create(
         "BWPA0002",
         "Unsupported view declaration",
         "Type '{0}' must be an accessible, concrete, non-generic WinUI Page subclass",
         DiagnosticSeverity.Error);
 
-    /// <summary>The view model is unsupported.</summary>
     public static readonly DiagnosticDescriptor InvalidViewModel = Create(
         "BWPA0003",
         "Unsupported view model declaration",
         "View model type '{0}' must be an accessible, concrete, non-abstract, closed class",
         DiagnosticSeverity.Error);
 
-    /// <summary>A referenced generated module is incompatible.</summary>
     public static readonly DiagnosticDescriptor IncompatibleModule = Create(
         "BWPA0004",
         "Incompatible page activation view module",
         "Referenced view module '{0}' must be accessible, non-generic, and declare public static void Register(IServiceCollection services)",
         DiagnosticSeverity.Error);
 
-    /// <summary>The view model lacks a public constructor.</summary>
     public static readonly DiagnosticDescriptor MissingPublicConstructor = Create(
         "BWPA0005",
         "View model has no public constructor",
         "View model type '{0}' has no public constructor; provide an explicit DI factory before AddGeneratedPageServices",
         DiagnosticSeverity.Warning);
 
-    /// <summary>The Page lacks a public constructor.</summary>
     public static readonly DiagnosticDescriptor MissingPagePublicConstructor = Create(
         "BWPA0006",
         "Page has no public constructor",
         "Page type '{0}' has no public constructor; provide an explicit DI factory before AddGeneratedPageServices",
         DiagnosticSeverity.Warning);
 
-    /// <summary>The generated registration lifetime value is unsupported.</summary>
     public static readonly DiagnosticDescriptor UnsupportedLifetime = Create(
         "BWPA0007",
         "Unsupported generated registration lifetime",

@@ -3,14 +3,9 @@ using Microsoft.CodeAnalysis;
 
 namespace BetterWinUI.PageActivation.DependencyInjection.Generator;
 
-/// <summary>
-/// Represents a value-equatable generated module exported by a referenced assembly.
-/// </summary>
+/// <summary>Describes a view module that a referenced assembly exports through PageActivationViewModuleAttribute.</summary>
 internal readonly struct ReferencedViewModule : IEquatable<ReferencedViewModule>
 {
-    /// <summary>
-    /// Initializes a referenced generated registration module.
-    /// </summary>
     public ReferencedViewModule(
         bool isValid,
         string assemblyName,
@@ -21,13 +16,14 @@ internal readonly struct ReferencedViewModule : IEquatable<ReferencedViewModule>
         ModuleTypeName = moduleTypeName;
     }
 
-    /// <summary>Gets whether the module exposes the required callable registration method.</summary>
+    /// <summary>
+    /// Gets a value that indicates whether this compilation can call the module's
+    /// <c>public static void Register(IServiceCollection)</c> method.
+    /// </summary>
     public bool IsValid { get; }
 
-    /// <summary>Gets the declaring assembly name.</summary>
     public string AssemblyName { get; }
 
-    /// <summary>Gets the fully qualified generated module type name.</summary>
     public string ModuleTypeName { get; }
 
     /// <inheritdoc />
@@ -58,10 +54,9 @@ internal readonly struct ReferencedViewModule : IEquatable<ReferencedViewModule>
     }
 }
 
-/// <summary>Compares referenced module snapshots by value across compilation updates.</summary>
+/// <summary>Compares module lists by value, which ImmutableArray does not, so unchanged references stay cached.</summary>
 internal sealed class ReferencedViewModuleSequenceComparer : IEqualityComparer<ImmutableArray<ReferencedViewModule>>
 {
-    /// <summary>Gets the comparer shared by the incremental pipeline.</summary>
     public static ReferencedViewModuleSequenceComparer Instance { get; } = new();
 
     /// <inheritdoc />
@@ -81,14 +76,13 @@ internal sealed class ReferencedViewModuleSequenceComparer : IEqualityComparer<I
     }
 }
 
-/// <summary>
-/// Extracts value-equatable generated registration modules from compilation references.
-/// </summary>
 internal static class ReferencedViewModuleReader
 {
-    /// <summary>
-    /// Reads generated registration modules from referenced assemblies.
-    /// </summary>
+    /// <summary>Reads the view modules exported by referenced assemblies, in a stable order.</summary>
+    /// <remarks>
+    /// The Register method is validated here rather than trusted, because a reference may come from a different
+    /// generator version or declare the attribute by hand.
+    /// </remarks>
     public static ImmutableArray<ReferencedViewModule> Read(
         Compilation compilation,
         CancellationToken cancellationToken)

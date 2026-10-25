@@ -4,9 +4,6 @@ using Scriban;
 
 namespace BetterWinUI.PageActivation.Generators.Internal;
 
-/// <summary>
-/// Loads embedded Scriban templates and exposes one small rendering seam.
-/// </summary>
 internal static class TemplateRenderer
 {
     private static readonly Assembly Assembly = typeof(TemplateRenderer).Assembly;
@@ -14,12 +11,11 @@ internal static class TemplateRenderer
     private static readonly ConcurrentDictionary<string, Template> Templates =
         new(StringComparer.Ordinal);
 
-    /// <summary>
-    /// Renders an embedded template with public model member names preserved.
-    /// </summary>
-    /// <param name="templateName">The embedded template file name.</param>
-    /// <param name="model">The template model.</param>
+    /// <summary>Renders an embedded template with a model whose members keep their C# names.</summary>
+    /// <param name="templateName">The template file name under the generator's Templates folder.</param>
+    /// <param name="model">The object whose public members the template reads.</param>
     /// <returns>The rendered C# source.</returns>
+    /// <remarks>Scriban renames members to snake_case by default; the templates use the original names.</remarks>
     public static string Render(string templateName, object model)
     {
         var template = Templates.GetOrAdd(templateName, ParseTemplate);
@@ -38,6 +34,7 @@ internal static class TemplateRenderer
 
     private static string ReadTemplate(string templateName)
     {
+        // Resource names start with the generator's root namespace, so match on the folder and file name only.
         var suffix = $".Templates.{templateName}";
         var resourceName = Assembly
             .GetManifestResourceNames()

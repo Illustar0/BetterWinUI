@@ -4,8 +4,13 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace BetterWinUI.PageActivation.DependencyInjection.Generator;
 
 /// <summary>
-/// Generates compile-time registration modules and the hook application's composition root.
+/// Generates the view module of each assembly and the AddGeneratedPageServices composition root of the assembly
+/// that declares the hook application.
 /// </summary>
+/// <remarks>
+/// Every assembly with marked Pages or ViewModels exports a public view module. The composition root calls the local
+/// module and the modules of all references, so registrations cross assembly boundaries without runtime scanning.
+/// </remarks>
 [Generator(LanguageNames.CSharp)]
 public sealed class PageActivationGenerator : IIncrementalGenerator
 {
@@ -49,6 +54,7 @@ public sealed class PageActivationGenerator : IIncrementalGenerator
             static (productionContext, input) =>
             {
                 var (((applications, hasLocal), modules), name) = input;
+                // The activation generator reports BWPH0003 for several hook applications; only one gets a composition root.
                 if (applications.Length != 1) return;
                 SourceEmitter.EmitCompositionRoot(productionContext, applications[0], hasLocal, modules, name);
             });

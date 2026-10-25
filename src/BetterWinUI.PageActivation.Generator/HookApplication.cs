@@ -5,6 +5,12 @@ namespace BetterWinUI.PageActivation.Generator;
 /// <summary>
 /// Describes the application marked for page activation and the facts that decide whether it can be extended.
 /// </summary>
+/// <remarks>
+/// <see cref="ProviderPropertyName" /> names the private property through which XAML-generated code exposes the
+/// native metadata provider; it is <see langword="null" /> until that code exists. <see cref="IsXamlOutputReady" />
+/// reports a non-empty XamlTypeInfo.g.cs, which the XAML compiler adds only to the final compilation, not to the
+/// markup pass.
+/// </remarks>
 internal readonly record struct HookApplication(
     string Namespace,
     string Name,
@@ -26,6 +32,7 @@ internal readonly record struct HookApplication(
         if (!IsSupportedShape) yield return new DiagnosticInfo(DiagnosticDescriptors.InvalidApp, Location, DisplayName);
         if (!IsPartial) yield return new DiagnosticInfo(DiagnosticDescriptors.AppMustBePartial, Location, DisplayName);
         if (HasActivationConflict) yield return new DiagnosticInfo(DiagnosticDescriptors.InitializationMemberConflict, Location, DisplayName);
+        // A missing provider is expected in the markup pass and only an error once the XAML output exists.
         if (IsXamlOutputReady && ProviderPropertyName is null)
             yield return new DiagnosticInfo(DiagnosticDescriptors.MissingXamlProvider, Location, DisplayName);
     }
@@ -49,7 +56,6 @@ internal readonly record struct HookApplication(
             compilation.SyntaxTrees.Any(static tree => IsXamlTypeInfoTree(tree) && tree.Length > 0));
     }
 
-    /// <summary>Checks the application shape supported by generated partial declarations.</summary>
     private static bool IsSupported(INamedTypeSymbol symbol, INamedTypeSymbol? applicationType)
     {
         if (symbol.TypeKind != TypeKind.Class || symbol.IsAbstract || symbol.Arity != 0 ||
@@ -59,7 +65,11 @@ internal readonly record struct HookApplication(
         return symbol.DerivesFrom(applicationType);
     }
 
-    /// <summary>Checks whether user code declares the member the generated factory method would occupy.</summary>
+    /// <summary>Checks whether user code declares a member that the generated UsePageActivation method would clash with.</summary>
+    /// <remarks>
+    /// Any non-method member with the name clashes. Methods clash only with the same signature; other overloads,
+    /// such as one that takes a service provider, can coexist.
+    /// </remarks>
     private static bool ConflictsWithActivationMethod(INamedTypeSymbol symbol, ITypeSymbol? factoryType)
     {
         return symbol.GetMembers("UsePageActivation").Any(member =>
@@ -81,6 +91,11 @@ internal readonly record struct HookApplication(
     private static bool IsXamlTypeInfoTree(SyntaxTree? tree) =>
         tree?.FilePath.EndsWith("XamlTypeInfo.g.cs", StringComparison.OrdinalIgnoreCase) == true;
 
+    /// <summary>Finds the property through which XAML-generated code exposes the native metadata provider.</summary>
+    /// <remarks>
+    /// The property is matched by shape rather than by name: a private, read-only instance property declared in
+    /// XamlTypeInfo.g.cs whose type implements the metadata provider interface. More than one match is ambiguous.
+    /// </remarks>
     private static string? GetNativeProviderPropertyName(
         INamedTypeSymbol symbol,
         INamedTypeSymbol? xamlProviderInterface)

@@ -8,9 +8,13 @@ namespace BetterWinUI.PageActivation.Generator;
 /// <summary>
 /// Describes the referenced WASDK XAML interfaces without retaining Roslyn symbols.
 /// </summary>
+/// <remarks>
+/// The generated adapter implements every member of these interfaces by forwarding to the native provider. Reading
+/// the members from the referenced Windows App SDK, rather than hard-coding them, keeps the adapter compiling when a
+/// later SDK version adds members.
+/// </remarks>
 internal readonly struct XamlContractModel : IEquatable<XamlContractModel>
 {
-    /// <summary>Initializes a XAML interface contract model.</summary>
     public XamlContractModel(
         string metadataProviderInterfaceName,
         string xamlTypeInterfaceName,
@@ -23,16 +27,12 @@ internal readonly struct XamlContractModel : IEquatable<XamlContractModel>
         XamlTypeMembers = xamlTypeMembers;
     }
 
-    /// <summary>Gets the fully qualified metadata provider interface name.</summary>
     public string MetadataProviderInterfaceName { get; }
 
-    /// <summary>Gets the fully qualified XAML type interface name.</summary>
     public string XamlTypeInterfaceName { get; }
 
-    /// <summary>Gets the metadata provider interface members.</summary>
     public ImmutableArray<InterfaceMemberModel> MetadataProviderMembers { get; }
 
-    /// <summary>Gets the XAML type interface members.</summary>
     public ImmutableArray<InterfaceMemberModel> XamlTypeMembers { get; }
 
     /// <summary>Gets the contract of a compilation that does not reference both XAML interfaces.</summary>
@@ -42,10 +42,12 @@ internal readonly struct XamlContractModel : IEquatable<XamlContractModel>
         ImmutableArray<InterfaceMemberModel>.Empty,
         ImmutableArray<InterfaceMemberModel>.Empty);
 
-    /// <summary>Gets a value indicating whether both XAML interfaces are available.</summary>
     public bool IsAvailable => MetadataProviderInterfaceName.Length > 0;
 
-    /// <summary>Gets a value indicating whether all required interception methods are unique.</summary>
+    /// <summary>
+    /// Gets a value that indicates whether each member the adapter intercepts (both GetXamlType overloads,
+    /// UnderlyingType, and ActivateInstance) occurs exactly once.
+    /// </summary>
     public bool HasRequiredInterceptors =>
         MetadataProviderMembers.Count(static member => member.SpecialKind == XamlMemberSpecialKind.GetXamlTypeByType) ==
         1 &&
@@ -54,9 +56,6 @@ internal readonly struct XamlContractModel : IEquatable<XamlContractModel>
         XamlTypeMembers.Count(static member => member.SpecialKind == XamlMemberSpecialKind.ActivateInstance) == 1 &&
         XamlTypeMembers.Count(static member => member.IsUnderlyingType) == 1;
 
-    /// <summary>
-    /// Creates a value-only contract from the current compilation references.
-    /// </summary>
     public static XamlContractModel Create(
         Compilation compilation,
         CancellationToken cancellationToken)
@@ -122,6 +121,7 @@ internal readonly struct XamlContractModel : IEquatable<XamlContractModel>
                 member.DeclaredAccessibility == Accessibility.Public &&
                 (member is IPropertySymbol or IEventSymbol ||
                  member is IMethodSymbol { MethodKind: MethodKind.Ordinary }))
+            // A stable order keeps the generated source and the cached model identical across compilations.
             .OrderBy(static member => member.Kind)
             .ThenBy(static member => member.Name, StringComparer.Ordinal)
             .ThenBy(
@@ -134,6 +134,7 @@ internal readonly struct XamlContractModel : IEquatable<XamlContractModel>
         foreach (var symbol in symbols)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            // A member redeclared by several interfaces in the hierarchy is implemented once.
             var key = symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
             if (seen.Add(key)) members.Add(InterfaceMemberModel.Create(symbol));
         }
@@ -165,10 +166,11 @@ internal enum XamlMemberSpecialKind : byte
 /// </summary>
 internal readonly struct InterfaceMemberModel : IEquatable<InterfaceMemberModel>
 {
+    // ITypeParameterSymbol.AllowsRefLikeType was added after Roslyn 4.8, which the generator compiles against so that
+    // the .NET 8 SDK can load it. Newer host compilers expose the property and it is read through reflection.
     private static readonly PropertyInfo? AllowsRefLikeTypeProperty =
         typeof(ITypeParameterSymbol).GetProperty("AllowsRefLikeType");
 
-    /// <summary>Initializes an interface member model.</summary>
     public InterfaceMemberModel(
         string kind,
         string declarationName,
@@ -197,16 +199,14 @@ internal readonly struct InterfaceMemberModel : IEquatable<InterfaceMemberModel>
         SpecialKind = specialKind;
     }
 
-    /// <summary>Gets Method, Property, or Event.</summary>
+    /// <summary>Gets <c>Method</c>, <c>Property</c>, or <c>Event</c>.</summary>
     public string Kind { get; }
 
-    /// <summary>Gets a value indicating whether this member is a method.</summary>
     public bool IsMethod => string.Equals(Kind, "Method", StringComparison.Ordinal);
 
-    /// <summary>Gets a value indicating whether this member is a property or indexer.</summary>
+    /// <summary>Gets a value that indicates whether this member is a property or an indexer.</summary>
     public bool IsProperty => string.Equals(Kind, "Property", StringComparison.Ordinal);
 
-    /// <summary>Gets a value indicating whether this member is an event.</summary>
     public bool IsEvent => string.Equals(Kind, "Event", StringComparison.Ordinal);
 
     /// <summary>Gets the declaration member name and any type or index parameters.</summary>
@@ -218,50 +218,43 @@ internal readonly struct InterfaceMemberModel : IEquatable<InterfaceMemberModel>
     /// <summary>Gets the fully qualified return, property, or event type.</summary>
     public string TypeName { get; }
 
-    /// <summary>Gets a ref return declaration prefix.</summary>
+    /// <summary>Gets <c>ref </c> or <c>ref readonly </c> for a member that returns by reference; otherwise, an empty string.</summary>
     public string DeclarationPrefix { get; }
 
-    /// <summary>Gets a ref return expression prefix.</summary>
+    /// <summary>Gets <c>ref </c> for a forwarding expression that returns by reference; otherwise, an empty string.</summary>
     public string ExpressionPrefix { get; }
 
-    /// <summary>Gets the comma-separated method parameter declarations.</summary>
+    /// <summary>Gets the comma-separated parameter declarations.</summary>
     public string Parameters { get; }
 
-    /// <summary>Gets the comma-separated forwarding arguments.</summary>
+    /// <summary>Gets the comma-separated arguments that forward the parameters.</summary>
     public string Arguments { get; }
 
-    /// <summary>Gets generic constraint clauses required by implicit implementations.</summary>
+    /// <summary>Gets the generic constraint clauses that an implicit implementation must repeat.</summary>
     public string Constraints { get; }
 
-    /// <summary>Gets a value indicating whether a property can be read.</summary>
     public bool CanRead { get; }
 
-    /// <summary>Gets a value indicating whether a property can be written.</summary>
     public bool CanWrite { get; }
 
-    /// <summary>Gets the interception semantics for this member.</summary>
     public XamlMemberSpecialKind SpecialKind { get; }
 
-    /// <summary>Gets a value indicating whether this member intercepts Type lookup.</summary>
     public bool IsGetXamlTypeByType =>
         SpecialKind == XamlMemberSpecialKind.GetXamlTypeByType;
 
-    /// <summary>Gets a value indicating whether this member intercepts name lookup.</summary>
     public bool IsGetXamlTypeByName =>
         SpecialKind == XamlMemberSpecialKind.GetXamlTypeByName;
 
-    /// <summary>Gets a value indicating whether this member intercepts activation.</summary>
     public bool IsActivateInstance =>
         SpecialKind == XamlMemberSpecialKind.ActivateInstance;
 
-    /// <summary>Gets a value indicating whether this is the required runtime type property.</summary>
+    /// <summary>Gets a value that indicates whether this is the readable UnderlyingType property the adapter reads.</summary>
     public bool IsUnderlyingType =>
         IsProperty &&
         string.Equals(DeclarationName, "UnderlyingType", StringComparison.Ordinal) &&
         string.Equals(TypeName, "global::System.Type", StringComparison.Ordinal) &&
         CanRead;
 
-    /// <summary>Creates a value-only model from a referenced interface member.</summary>
     public static InterfaceMemberModel Create(ISymbol symbol)
     {
         return symbol switch
@@ -424,6 +417,7 @@ internal readonly struct InterfaceMemberModel : IEquatable<InterfaceMemberModel>
             RefKind.Ref => "ref ",
             RefKind.Out => "out ",
             RefKind.In => "in ",
+            // A ref readonly parameter accepts an in argument at the call site.
             RefKind.RefReadOnlyParameter => "in ",
             _ => string.Empty
         };

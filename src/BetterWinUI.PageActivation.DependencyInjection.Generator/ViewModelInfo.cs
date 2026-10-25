@@ -3,14 +3,9 @@ using Microsoft.CodeAnalysis;
 
 namespace BetterWinUI.PageActivation.DependencyInjection.Generator;
 
-/// <summary>
-/// Represents a value-equatable attributed view model registration.
-/// </summary>
+/// <summary>Describes a ViewModel marked for a generated registration, as a cacheable value.</summary>
 internal readonly struct ViewModelInfo : IEquatable<ViewModelInfo>
 {
-    /// <summary>
-    /// Initializes a view model registration.
-    /// </summary>
     public ViewModelInfo(
         string typeName,
         int lifetime,
@@ -25,24 +20,17 @@ internal readonly struct ViewModelInfo : IEquatable<ViewModelInfo>
         Diagnostics = diagnostics;
     }
 
-    /// <summary>Gets the fully qualified view model type name.</summary>
     public string TypeName { get; }
 
-    /// <summary>Gets the numeric Microsoft DI lifetime.</summary>
     public int Lifetime { get; }
 
-    /// <summary>Gets the attributed view model location.</summary>
     public DiagnosticLocation Location { get; }
 
-    /// <summary>Gets a value indicating whether the registration is valid.</summary>
+    /// <summary>Gets a value that indicates whether the registration is emitted; a missing public constructor only warns.</summary>
     public bool IsValid { get; }
 
-    /// <summary>Gets diagnostics discovered while creating the registration.</summary>
     public ImmutableArray<DiagnosticInfo> Diagnostics { get; }
 
-    /// <summary>
-    /// Creates a view model registration from an attributed type.
-    /// </summary>
     public static ViewModelInfo Create(GeneratorAttributeSyntaxContext context)
     {
         var symbol = (INamedTypeSymbol)context.TargetSymbol;

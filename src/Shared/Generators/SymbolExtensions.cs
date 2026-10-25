@@ -4,9 +4,6 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace BetterWinUI.PageActivation.Generators.Internal;
 
-/// <summary>
-/// Provides focused Roslyn symbol operations used by generator models.
-/// </summary>
 internal static class SymbolExtensions
 {
     private static readonly SymbolDisplayFormat FullyQualifiedFormat =
@@ -16,22 +13,12 @@ internal static class SymbolExtensions
                 SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers |
                 SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
 
-    /// <summary>
-    /// Gets a source-safe fully qualified type name.
-    /// </summary>
-    /// <param name="symbol">The type symbol.</param>
-    /// <returns>The fully qualified type name.</returns>
+    /// <summary>Gets a <c>global::</c>-qualified type name that generated code can use in any namespace.</summary>
     public static string ToGlobalDisplayString(this ITypeSymbol symbol)
     {
         return symbol.ToDisplayString(FullyQualifiedFormat);
     }
 
-    /// <summary>
-    /// Determines whether a type derives from a base type.
-    /// </summary>
-    /// <param name="symbol">The candidate type.</param>
-    /// <param name="baseType">The expected base type.</param>
-    /// <returns><see langword="true"/> when the candidate derives from the base type.</returns>
     public static bool DerivesFrom(this INamedTypeSymbol symbol, INamedTypeSymbol? baseType)
     {
         for (var current = symbol.BaseType; current is not null; current = current.BaseType)
@@ -41,11 +28,11 @@ internal static class SymbolExtensions
         return false;
     }
 
-    /// <summary>
-    /// Determines whether a generated namespace-level module can reference a type.
-    /// </summary>
-    /// <param name="symbol">The candidate type.</param>
-    /// <returns><see langword="true"/> when the type is closed and assembly-accessible.</returns>
+    /// <summary>Determines whether namespace-level generated code in the same assembly can name a type.</summary>
+    /// <returns>
+    /// <see langword="true" /> if the type and its containing types are non-generic, not file-local, and at least
+    /// internal; otherwise, <see langword="false" />.
+    /// </returns>
     public static bool CanBeReferencedFromGeneratedModule(this INamedTypeSymbol symbol)
     {
         for (var current = symbol; current is not null; current = current.ContainingType)
@@ -61,12 +48,7 @@ internal static class SymbolExtensions
         return true;
     }
 
-    /// <summary>
-    /// Determines whether every declaration of a type is partial.
-    /// </summary>
-    /// <param name="symbol">The type symbol.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns><see langword="true"/> when every source declaration is partial.</returns>
+    /// <summary>Determines whether every source declaration of a type is partial.</summary>
     public static bool IsPartial(
         this INamedTypeSymbol symbol,
         CancellationToken cancellationToken)

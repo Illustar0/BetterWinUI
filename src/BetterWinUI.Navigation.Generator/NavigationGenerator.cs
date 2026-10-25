@@ -43,6 +43,7 @@ public sealed class NavigationGenerator : IIncrementalGenerator
     private static void Generate(SourceProductionContext output, CompilationInfo compilation,
         ImmutableArray<PageInfo> pages, ImmutableArray<ModuleInfo> modules)
     {
+        // Generated code names PageMap; a compilation that cannot resolve it would not compile the output.
         if (!compilation.HasPageMap) return;
         var validModules = GetValidModules(output, modules);
         var groups = GroupMappings(output, pages, validModules);
@@ -73,6 +74,7 @@ public sealed class NavigationGenerator : IIncrementalGenerator
     {
         var groups = validModules.Keys.Append(string.Empty)
             .ToDictionary(static name => name, static _ => new List<Mapping>(), StringComparer.Ordinal);
+        // A partial Page with PageFor attributes on several declarations produces one identical PageInfo per declaration.
         foreach (var mapping in pages.Distinct().SelectMany(static page => page.Mappings))
             AddMapping(output, mapping, validModules, groups);
         return groups;
@@ -106,6 +108,7 @@ public sealed class NavigationGenerator : IIncrementalGenerator
             return;
         }
         var group = mapping.ModuleName;
+        // This compilation can only add a Register implementation to a valid module declared in this assembly.
         if (group.Length > 0 && (!modules.TryGetValue(group, out var localModule) ||
                                  !string.Equals(mapping.ModuleAssemblyIdentity, localModule.AssemblyIdentity,
                                      StringComparison.Ordinal)))
@@ -172,7 +175,7 @@ public sealed class NavigationGenerator : IIncrementalGenerator
             IsValidModule(module, token),
             SourceLocation.Create(module.Locations[0]));
 
-        /// <summary>Checks declarations that receive a generated module implementation.</summary>
+        /// <summary>Checks declarations that can receive a generated partial declaration with a Register method.</summary>
         private static bool IsValidModule(INamedTypeSymbol module, CancellationToken token) =>
             module.TypeKind == TypeKind.Class && !module.IsRecord && !module.IsAbstract && !module.IsStatic &&
             module.Arity == 0 && module.ContainingType is null && Accessible(module) && module.GetMembers("Register").Length == 0 &&
@@ -190,7 +193,7 @@ public sealed class NavigationGenerator : IIncrementalGenerator
         bool IsValidModuleType,
         SourceLocation Location);
 
-    /// <summary>Collects all mapping attributes on a Page into an equatable model.</summary>
+    /// <summary>Collects all mapping attributes on a Page with value equality, which ImmutableArray lacks.</summary>
     private sealed class PageInfo(ImmutableArray<Mapping> mappings) : IEquatable<PageInfo>
     {
         internal ImmutableArray<Mapping> Mappings { get; } = mappings;

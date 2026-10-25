@@ -6,7 +6,11 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace BetterWinUI.PageActivation.Generator;
 
-/// <summary>Connects application Page factories to WinUI's native XAML activation contract.</summary>
+/// <summary>Generates the Page activation hook for the application marked with GeneratePageActivationHookAttribute.</summary>
+/// <remarks>
+/// The XAML compiler compiles the application twice. The markup pass, which runs before XamlTypeInfo.g.cs exists,
+/// receives a stub; the final compilation receives an adapter that intercepts the native XAML metadata provider.
+/// </remarks>
 [Generator(LanguageNames.CSharp)]
 public sealed class PageActivationGenerator : IIncrementalGenerator
 {
@@ -17,6 +21,7 @@ public sealed class PageActivationGenerator : IIncrementalGenerator
             MetadataNames.GeneratePageActivationHookAttribute,
             static (node, _) => node is ClassDeclarationSyntax,
             static (input, token) => HookApplication.Analyze(input, token)).Collect();
+        // Reading the referenced XAML interfaces walks every member, so assemblies without a hook application skip it.
         var contract = apps.Combine(context.CompilationProvider).Select(
             static (input, token) => input.Left.IsEmpty
                 ? XamlContractModel.Unavailable
@@ -38,6 +43,8 @@ public sealed class PageActivationGenerator : IIncrementalGenerator
         }
         if (apps.IsEmpty || !apps[0].IsValid) return;
         var application = apps[0];
+        // The markup-pass stub needs no XAML contract. The adapter must find exactly one member to intercept for
+        // each lookup and activation call, or it cannot route activation safely.
         if (application.ProviderPropertyName is not null &&
             (!contract.IsAvailable || !contract.HasRequiredInterceptors))
         {
