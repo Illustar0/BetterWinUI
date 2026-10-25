@@ -1,10 +1,10 @@
 using BetterWinUI.Navigation;
 using BetterWinUI.Navigation.Frame;
-using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
+using Shouldly;
 
 [assembly: DoNotParallelize]
 
@@ -14,231 +14,416 @@ namespace BetterWinUI.IntegrationTests;
 [TestClass]
 public sealed class FrameNavigationTests
 {
-    /// <summary>Passes the original parameter through both open and explicitly typed calls.</summary>
+    /// <summary>The open overload passes the original parameter to the native Frame.</summary>
     [UITestMethod]
-    public void NavigationPreservesOriginalParameter()
+    public void Navigate_OpenParameter_PassesOriginalParameterToFrame()
     {
-        var navigator = new FrameNavigator((_, _) => typeof(FirstPage));
-        var frame = new Frame();
-        using var lease = navigator.Attach(frame);
-        var parameter = new DetailArgs(42);
+        using var attached = Attach((_, _) => typeof(FirstPage));
+        var parameter = new DetailArgs(0);
         object? received = null;
-        frame.Navigated += (_, args) => received = args.Parameter;
-        Assert.IsTrue(navigator.Navigate<DetailViewModel>(parameter));
-        Assert.IsInstanceOfType<FirstPage>(frame.Content);
-        Assert.AreSame(parameter, received);
-        Assert.IsTrue(navigator.Navigate<DetailViewModel, DetailArgs>(parameter));
-        Assert.AreSame(parameter, received);
+        attached.Frame.Navigated += (_, args) => received = args.Parameter;
+
+        var navigated = attached.Navigator.Navigate<DetailViewModel>(parameter);
+
+        attached.ShouldSatisfyAllConditions(
+            () => navigated.ShouldBeTrue(),
+            () => attached.Frame.Content.ShouldBeOfType<FirstPage>(),
+            () => received.ShouldBeSameAs(parameter));
     }
 
-    /// <summary>Retains request transition overrides in the real native journal.</summary>
+    /// <summary>The associated-parameter overload passes the original parameter to the native Frame.</summary>
     [UITestMethod]
-    public void RequestPreservesTransitionWithoutParameter()
+    public void NavigateWithAssociatedParameter_ParameterSupplied_PassesOriginalParameterToFrame()
     {
-        var navigator = new FrameNavigator((_, _) => typeof(FirstPage));
-        var frame = new Frame();
-        using var lease = navigator.Attach(frame);
+        using var attached = Attach((_, _) => typeof(FirstPage));
+        var parameter = new DetailArgs(0);
+        object? received = null;
+        attached.Frame.Navigated += (_, args) => received = args.Parameter;
+
+        var navigated = attached.Navigator.Navigate<DetailViewModel, DetailArgs>(parameter);
+
+        attached.ShouldSatisfyAllConditions(
+            () => navigated.ShouldBeTrue(),
+            () => received.ShouldBeSameAs(parameter));
+    }
+
+    /// <summary>A request transition is recorded in the native journal even without a parameter.</summary>
+    [UITestMethod]
+    public void NavigateRequest_TransitionWithoutParameter_RecordsTransitionInJournal()
+    {
+        using var attached = Attach((_, _) => typeof(FirstPage));
         var transition = new SuppressNavigationTransitionInfo();
-        navigator.Navigate(FrameNavigationRequest.For<DetailViewModel>(transitionInfo: transition));
-        navigator.Navigate<DetailViewModel>();
-        Assert.AreSame(transition, frame.BackStack[0].NavigationTransitionInfo);
-        Assert.IsNull(frame.BackStack[0].Parameter);
+
+        attached.Navigator.Navigate(FrameNavigationRequest.For<DetailViewModel>(transitionInfo: transition));
+        attached.Navigator.Navigate<DetailViewModel>();
+
+        var entry = attached.Frame.BackStack.ShouldHaveSingleItem();
+        entry.ShouldSatisfyAllConditions(
+            () => entry.NavigationTransitionInfo.ShouldBeSameAs(transition),
+            () => entry.Parameter.ShouldBeNull());
     }
 
-    /// <summary>Uses new mappings for new navigation and preserves the native journal after removal.</summary>
+    /// <summary>New navigation uses a replaced mapping.</summary>
     [UITestMethod]
-    public void MappingChangesDoNotRewriteHistory()
+    public void Navigate_MappingReplaced_UsesNewPage()
     {
-        var pages = new PageMap();
-        pages.Add<DetailViewModel, FirstPage>();
-        var navigator = new FrameNavigator(pages);
-        var frame = new Frame();
-        using var lease = navigator.Attach(frame);
-        navigator.Navigate<DetailViewModel>();
+        var pages = CreateDetailMap<FirstPage>();
+        using var attached = Attach(pages);
+        attached.Navigator.Navigate<DetailViewModel>();
         pages.Set<DetailViewModel, SecondPage>();
-        navigator.Navigate<DetailViewModel>();
-        Assert.IsInstanceOfType<SecondPage>(frame.Content);
-        pages.Remove<DetailViewModel>();
-        Assert.IsTrue(navigator.CanGoBack);
-        navigator.GoBack(new SuppressNavigationTransitionInfo());
-        Assert.IsInstanceOfType<FirstPage>(frame.Content);
-        Assert.IsTrue(navigator.CanGoForward);
-        navigator.GoForward();
-        Assert.IsInstanceOfType<SecondPage>(frame.Content);
-        navigator.GoBack();
-        Assert.IsInstanceOfType<FirstPage>(frame.Content);
+
+        attached.Navigator.Navigate<DetailViewModel>();
+
+        attached.Frame.Content.ShouldBeOfType<SecondPage>();
     }
 
-    /// <summary>Uses the frozen snapshot when the source map is subsequently replaced.</summary>
+    /// <summary>A second navigation creates back history.</summary>
     [UITestMethod]
-    public void FrozenMappingRemainsIndependent()
+    public void CanGoBack_AfterSecondNavigation_ReturnsTrue()
     {
-        var pages = new PageMap();
-        pages.Add<DetailViewModel, FirstPage>();
+        using var attached = CreateTwoEntryJournal();
+
+        attached.Navigator.CanGoBack.ShouldBeTrue();
+    }
+
+    /// <summary>Back navigation follows the native journal.</summary>
+    [UITestMethod]
+    public void GoBack_AfterSecondNavigation_RestoresFirstPage()
+    {
+        using var attached = CreateTwoEntryJournal();
+
+        attached.Navigator.GoBack();
+
+        attached.Frame.Content.ShouldBeOfType<FirstPage>();
+    }
+
+    /// <summary>Back navigation with a transition uses the journal after its mapping is removed.</summary>
+    [UITestMethod]
+    public void GoBackWithTransition_MappingRemoved_RestoresJournalPage()
+    {
+        var pages = CreateDetailMap<FirstPage>();
+        using var attached = CreateTwoEntryJournal(pages);
+        pages.Remove<DetailViewModel>();
+
+        attached.Navigator.GoBack(new SuppressNavigationTransitionInfo());
+
+        attached.Frame.Content.ShouldBeOfType<FirstPage>();
+    }
+
+    /// <summary>Back navigation creates forward history.</summary>
+    [UITestMethod]
+    public void CanGoForward_AfterGoBack_ReturnsTrue()
+    {
+        using var attached = CreateTwoEntryJournal();
+        attached.Navigator.GoBack();
+
+        attached.Navigator.CanGoForward.ShouldBeTrue();
+    }
+
+    /// <summary>Forward navigation follows the native journal.</summary>
+    [UITestMethod]
+    public void GoForward_AfterGoBack_RestoresSecondPage()
+    {
+        using var attached = CreateTwoEntryJournal();
+        attached.Navigator.GoBack();
+
+        attached.Navigator.GoForward();
+
+        attached.Frame.Content.ShouldBeOfType<SecondPage>();
+    }
+
+    /// <summary>A navigator over a frozen map ignores later source changes.</summary>
+    [UITestMethod]
+    public void Navigate_FrozenMapSourceChanged_UsesSnapshotPage()
+    {
+        var pages = CreateDetailMap<FirstPage>();
         var navigator = new FrameNavigator(pages.Freeze());
         pages.Set<DetailViewModel, SecondPage>();
         var frame = new Frame();
         using var lease = navigator.Attach(frame);
+
         navigator.Navigate<DetailViewModel>();
-        Assert.IsInstanceOfType<FirstPage>(frame.Content);
+
+        frame.Content.ShouldBeOfType<FirstPage>();
     }
 
-    /// <summary>Supplies the logical target and original parameter to the application policy.</summary>
+    /// <summary>The application resolver receives the logical target and original parameter.</summary>
     [UITestMethod]
-    public void ResolverReceivesNavigationIntent()
+    public void Navigate_ApplicationResolver_ReceivesTargetAndParameter()
     {
-        var parameter = new DetailArgs(42);
-        var navigator = new FrameNavigator((target, args) =>
+        var parameter = new DetailArgs(0);
+        Type? receivedTarget = null;
+        object? receivedParameter = null;
+        using var attached = Attach((target, args) =>
         {
-            Assert.AreEqual(typeof(DetailViewModel), target);
-            Assert.AreSame(parameter, args);
+            receivedTarget = target;
+            receivedParameter = args;
             return typeof(SecondPage);
         });
-        var frame = new Frame();
-        using var lease = navigator.Attach(frame);
-        navigator.Navigate<DetailViewModel>(parameter);
-        Assert.IsInstanceOfType<SecondPage>(frame.Content);
+
+        attached.Navigator.Navigate<DetailViewModel>(parameter);
+
+        attached.ShouldSatisfyAllConditions(
+            () => receivedTarget.ShouldBe(typeof(DetailViewModel)),
+            () => receivedParameter.ShouldBeSameAs(parameter),
+            () => attached.Frame.Content.ShouldBeOfType<SecondPage>());
     }
 
-    /// <summary>Rejects invalid policy results before native navigation begins.</summary>
+    /// <summary>A resolver result that is not a Page is rejected before native navigation.</summary>
     [UITestMethod]
-    public void InvalidResolvedPageDoesNotNavigate()
+    public void Navigate_ResolverReturnsNonPage_ThrowsWithoutNavigating()
     {
-        var navigator = new FrameNavigator((_, _) => typeof(object));
-        var frame = new Frame();
-        using var lease = navigator.Attach(frame);
-        Assert.ThrowsExactly<ArgumentException>(() => navigator.Navigate<DetailViewModel>());
-        Assert.IsNull(frame.Content);
+        using var attached = Attach((_, _) => typeof(object));
+
+        Should.Throw<ArgumentException>(() => attached.Navigator.Navigate<DetailViewModel>());
+
+        attached.Frame.Content.ShouldBeNull();
     }
 
-    /// <summary>Leaves resolver exceptions intact for callers.</summary>
+    /// <summary>Resolver exceptions reach the caller unchanged.</summary>
     [UITestMethod]
-    public void ResolverExceptionPropagates()
+    public void Navigate_ResolverThrows_PropagatesSameException()
     {
         var failure = new InvalidOperationException("Policy failure");
-        var navigator = new FrameNavigator((_, _) => throw failure);
-        using var lease = navigator.Attach(new Frame());
-        Assert.AreSame(failure, Assert.ThrowsExactly<InvalidOperationException>(() => navigator.Navigate<DetailViewModel>()));
+        using var attached = Attach((_, _) => throw failure);
+
+        var exception = Should.Throw<InvalidOperationException>(() => attached.Navigator.Navigate<DetailViewModel>());
+
+        exception.ShouldBeSameAs(failure);
     }
 
-    /// <summary>Matches native cancellation results instead of interpreting bool as a completed page switch.</summary>
+    /// <summary>A canceled navigation returns the native result instead of reporting a page switch.</summary>
     [UITestMethod]
-    public void CancellationPreservesNativeResult()
+    public void Navigate_NavigatingCanceled_ReturnsNativeResultWithoutNavigating()
     {
         var direct = new Frame();
         direct.Navigating += (_, args) => args.Cancel = true;
         var expected = direct.Navigate(typeof(FirstPage));
-        var frame = new Frame();
-        frame.Navigating += (_, args) => args.Cancel = true;
-        var navigator = new FrameNavigator((_, _) => typeof(FirstPage));
-        using var lease = navigator.Attach(frame);
-        Assert.AreEqual(expected, navigator.Navigate<DetailViewModel>());
-        Assert.IsNull(frame.Content);
-        Assert.HasCount(0, frame.BackStack);
+        using var attached = Attach((_, _) => typeof(FirstPage));
+        attached.Frame.Navigating += (_, args) => args.Cancel = true;
+
+        var navigated = attached.Navigator.Navigate<DetailViewModel>();
+
+        attached.ShouldSatisfyAllConditions(
+            () => navigated.ShouldBe(expected),
+            () => attached.Frame.Content.ShouldBeNull(),
+            () => attached.Frame.BackStack.ShouldBeEmpty());
     }
 
-    /// <summary>Preserves the native false result when a second navigation is attempted reentrantly.</summary>
+    /// <summary>A reentrant navigation receives the native failure result while the outer call completes.</summary>
     [UITestMethod]
-    public void ReentrantNavigationPreservesNativeFailureResult()
+    public void Navigate_ReentrantCall_ReturnsNativeFailureForNestedCall()
     {
-        var frame = new Frame();
-        var navigator = new FrameNavigator((_, _) => typeof(FirstPage));
-        using var lease = navigator.Attach(frame);
+        using var attached = Attach((_, _) => typeof(FirstPage));
         bool? nestedResult = null;
-        frame.Navigating += (_, _) => nestedResult = navigator.Navigate<DetailViewModel>();
-        Assert.IsTrue(navigator.Navigate<DetailViewModel>());
-        Assert.AreEqual(false, nestedResult);
-        Assert.IsInstanceOfType<FirstPage>(frame.Content);
+        attached.Frame.Navigating += (_, _) => nestedResult = attached.Navigator.Navigate<DetailViewModel>();
+
+        var navigated = attached.Navigator.Navigate<DetailViewModel>();
+
+        attached.ShouldSatisfyAllConditions(
+            () => navigated.ShouldBeTrue(),
+            () => nestedResult.ShouldBe(false),
+            () => attached.Frame.Content.ShouldBeOfType<FirstPage>());
     }
 
-    /// <summary>Propagates Page constructor failures instead of converting exceptions to false.</summary>
+    /// <summary>Page constructor failures propagate instead of becoming a false result.</summary>
     [UITestMethod]
-    public void NativeActivationExceptionPropagates()
+    public void Navigate_PageConstructorThrows_PropagatesException()
     {
-        var navigator = new FrameNavigator((_, _) => typeof(FailingPage));
-        using var lease = navigator.Attach(new Frame());
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(() => navigator.Navigate<DetailViewModel>());
-        Assert.AreEqual("Page construction failed.", exception.Message, StringComparer.Ordinal);
+        using var attached = Attach((_, _) => typeof(FailingPage));
+
+        var exception = Should.Throw<InvalidOperationException>(() => attached.Navigator.Navigate<DetailViewModel>());
+
+        exception.Message.ShouldBe(FailingPage.FailureMessage);
     }
 
-    /// <summary>Rejects empty history without delegating invalid native operations.</summary>
+    /// <summary>An empty journal has no back entry.</summary>
     [UITestMethod]
-    public void EmptyHistoryRejectsBackAndForward()
+    public void CanGoBack_EmptyJournal_ReturnsFalse()
+    {
+        using var attached = Attach(new PageMap());
+
+        attached.Navigator.CanGoBack.ShouldBeFalse();
+    }
+
+    /// <summary>An empty journal has no forward entry.</summary>
+    [UITestMethod]
+    public void CanGoForward_EmptyJournal_ReturnsFalse()
+    {
+        using var attached = Attach(new PageMap());
+
+        attached.Navigator.CanGoForward.ShouldBeFalse();
+    }
+
+    /// <summary>Back navigation is rejected without a back entry.</summary>
+    [UITestMethod]
+    public void GoBack_EmptyJournal_ThrowsInvalidOperationException()
+    {
+        using var attached = Attach(new PageMap());
+
+        Should.Throw<InvalidOperationException>(attached.Navigator.GoBack);
+    }
+
+    /// <summary>Back navigation with a transition is rejected without a back entry.</summary>
+    [UITestMethod]
+    public void GoBackWithTransition_EmptyJournal_ThrowsInvalidOperationException()
+    {
+        using var attached = Attach(new PageMap());
+
+        Should.Throw<InvalidOperationException>(() => attached.Navigator.GoBack(new SuppressNavigationTransitionInfo()));
+    }
+
+    /// <summary>Forward navigation is rejected without a forward entry.</summary>
+    [UITestMethod]
+    public void GoForward_EmptyJournal_ThrowsInvalidOperationException()
+    {
+        using var attached = Attach(new PageMap());
+
+        Should.Throw<InvalidOperationException>(attached.Navigator.GoForward);
+    }
+
+    /// <summary>Only one Frame can be attached at a time.</summary>
+    [UITestMethod]
+    public void Attach_FrameAlreadyAttached_ThrowsInvalidOperationException()
+    {
+        using var attached = Attach(new PageMap());
+
+        Should.Throw<InvalidOperationException>(() => attached.Navigator.Attach(new Frame()));
+    }
+
+    /// <summary>Disposing the lease detaches its Frame.</summary>
+    [UITestMethod]
+    public void DisposeLease_AttachedFrame_Detaches()
     {
         var navigator = new FrameNavigator(new PageMap());
-        using var lease = navigator.Attach(new Frame());
-        Assert.IsFalse(navigator.CanGoBack);
-        Assert.IsFalse(navigator.CanGoForward);
-        Assert.ThrowsExactly<InvalidOperationException>(navigator.GoBack);
-        Assert.ThrowsExactly<InvalidOperationException>(() => navigator.GoBack(new SuppressNavigationTransitionInfo()));
-        Assert.ThrowsExactly<InvalidOperationException>(navigator.GoForward);
+        var lease = navigator.Attach(new Frame());
+
+        lease.Dispose();
+
+        navigator.IsAttached.ShouldBeFalse();
     }
 
-    /// <summary>Releases one attachment once without detaching a later replacement.</summary>
+    /// <summary>Disposing a released lease again leaves a replacement attachment intact.</summary>
     [UITestMethod]
-    public void AttachmentLeaseOwnsOnlyItsFrame()
+    public void DisposeLease_AfterReplacementAttached_KeepsReplacement()
     {
         var navigator = new FrameNavigator(new PageMap());
-        var first = new Frame();
-        using var lease = navigator.Attach(first);
-        Assert.AreSame(first, navigator.Frame);
-        Assert.ThrowsExactly<InvalidOperationException>(() => navigator.Attach(new Frame()));
+        var lease = navigator.Attach(new Frame());
         lease.Dispose();
-        Assert.IsFalse(navigator.IsAttached);
-        var second = new Frame();
-        using var replacement = navigator.Attach(second);
+        var replacement = new Frame();
+        using var replacementLease = navigator.Attach(replacement);
+
         lease.Dispose();
-        Assert.AreSame(second, navigator.Frame);
+
+        navigator.Frame.ShouldBeSameAs(replacement);
     }
 
-    /// <summary>Checks actual worker-thread access and permits disposal retry on the UI thread.</summary>
+    /// <summary>Navigation from a worker thread is rejected.</summary>
     [UITestMethod]
-    public async Task WrongThreadDoesNotReleaseAttachment()
+    public async Task Navigate_FromWorkerThread_ThrowsInvalidOperationException()
     {
-        var navigator = new FrameNavigator((_, _) => typeof(FirstPage));
-        using var lease = navigator.Attach(new Frame());
-        await Task.Run(() =>
-        {
-            Assert.ThrowsExactly<InvalidOperationException>(() => navigator.Navigate<DetailViewModel>());
-            Assert.ThrowsExactly<InvalidOperationException>(lease.Dispose);
-        });
-        Assert.IsTrue(navigator.IsAttached);
-        lease.Dispose();
-        Assert.IsFalse(navigator.IsAttached);
+        using var attached = Attach((_, _) => typeof(FirstPage));
+
+        var navigation = Task.Run(() => attached.Navigator.Navigate<DetailViewModel>());
+
+        await Should.ThrowAsync<InvalidOperationException>(navigation);
     }
 
-    /// <summary>Rejects a resolver that changes the attachment while choosing a Page.</summary>
+    /// <summary>Disposing a lease from a worker thread fails and keeps the Frame attached.</summary>
     [UITestMethod]
-    public void AttachmentChangeDuringResolutionDoesNotNavigate()
+    public async Task DisposeLease_FromWorkerThread_ThrowsAndKeepsAttachment()
     {
-        IDisposable? attachment = null;
+        using var attached = Attach((_, _) => typeof(FirstPage));
+
+        var disposal = Task.Run(attached.Lease.Dispose);
+
+        await Should.ThrowAsync<InvalidOperationException>(disposal);
+        attached.Navigator.IsAttached.ShouldBeTrue();
+    }
+
+    /// <summary>A lease disposal that failed on a worker thread can be retried on the UI thread.</summary>
+    [UITestMethod]
+    public async Task DisposeLease_RetriedAfterWorkerThreadFailure_Detaches()
+    {
+        using var attached = Attach((_, _) => typeof(FirstPage));
+        await Should.ThrowAsync<InvalidOperationException>(Task.Run(attached.Lease.Dispose));
+
+        attached.Lease.Dispose();
+
+        attached.Navigator.IsAttached.ShouldBeFalse();
+    }
+
+    /// <summary>A resolver that detaches the Frame stops the navigation.</summary>
+    [UITestMethod]
+    public void Navigate_ResolverDetachesFrame_ThrowsWithoutNavigating()
+    {
+        IDisposable? lease = null;
         var navigator = new FrameNavigator((_, _) =>
         {
-            attachment!.Dispose();
+            lease!.Dispose();
             return typeof(FirstPage);
         });
         var frame = new Frame();
-        using var lease = navigator.Attach(frame);
-        attachment = lease;
-        Assert.ThrowsExactly<InvalidOperationException>(() => navigator.Navigate<DetailViewModel>());
-        Assert.IsNull(frame.Content);
+        lease = navigator.Attach(frame);
+
+        Should.Throw<InvalidOperationException>(() => navigator.Navigate<DetailViewModel>());
+
+        frame.Content.ShouldBeNull();
     }
 
-    /// <summary>Leaves Page caching to the native Frame.</summary>
+    /// <summary>The native cache restores the same Page instance even after its mapping changes.</summary>
     [UITestMethod]
-    public void NativePageCachePreservesThePageInstance()
+    public void GoBack_CachedPageAfterMappingChange_RestoresSameInstance()
+    {
+        var pages = CreateDetailMap<CachedPage>();
+        using var attached = Attach(pages);
+        attached.Navigator.Navigate<DetailViewModel>();
+        var page = attached.Frame.Content;
+        pages.Set<DetailViewModel, SecondPage>();
+        attached.Navigator.Navigate<DetailViewModel>();
+
+        attached.Navigator.GoBack();
+
+        attached.Frame.Content.ShouldBeSameAs(page);
+    }
+
+    /// <summary>Creates a map that resolves the detail target to one Page.</summary>
+    private static PageMap CreateDetailMap<TPage>() where TPage : Page
+    {
+        var pages = new PageMap();
+        pages.Add<DetailViewModel, TPage>();
+        return pages;
+    }
+
+    /// <summary>Attaches a new Frame to a navigator backed by a Page map.</summary>
+    private static AttachedNavigator Attach(PageMap pages) => Attach(new FrameNavigator(pages));
+
+    /// <summary>Attaches a new Frame to a navigator backed by an application resolver.</summary>
+    private static AttachedNavigator Attach(Func<Type, object?, Type> resolvePage) => Attach(new FrameNavigator(resolvePage));
+
+    /// <summary>Attaches a new Frame to a navigator.</summary>
+    private static AttachedNavigator Attach(FrameNavigator navigator)
     {
         var frame = new Frame();
-        var pages = new PageMap();
-        pages.Add<DetailViewModel, CachedPage>();
-        var navigator = new FrameNavigator(pages);
-        using var lease = navigator.Attach(frame);
-        navigator.Navigate<DetailViewModel>();
-        var page = (CachedPage)frame.Content;
+        return new AttachedNavigator(navigator, frame, navigator.Attach(frame));
+    }
+
+    /// <summary>Navigates to FirstPage and then SecondPage through one mutable map.</summary>
+    private static AttachedNavigator CreateTwoEntryJournal(PageMap? pages = null)
+    {
+        pages ??= CreateDetailMap<FirstPage>();
+        var attached = Attach(pages);
+        attached.Navigator.Navigate<DetailViewModel>();
         pages.Set<DetailViewModel, SecondPage>();
-        navigator.Navigate<DetailViewModel>();
-        navigator.GoBack();
-        Assert.AreSame(page, frame.Content);
+        attached.Navigator.Navigate<DetailViewModel>();
+        return attached;
+    }
+
+    /// <summary>Owns one navigator attachment for the duration of a test.</summary>
+    private sealed record AttachedNavigator(FrameNavigator Navigator, Frame Frame, IDisposable Lease) : IDisposable
+    {
+        /// <inheritdoc />
+        public void Dispose() => Lease.Dispose();
     }
 }
 
